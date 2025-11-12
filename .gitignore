@@ -372,4 +372,3 @@ FodyWeavers.xsd
 # Custom
 *.csv
 *.exe
-thirdparty/SQLiteCPP/*
