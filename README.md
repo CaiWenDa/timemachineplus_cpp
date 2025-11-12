@@ -1,9 +1,14 @@
-# timemachineplus
-苹果timemachine复刻，超越，可支持本地磁盘数据和局域网拉取备份其他电脑，支持多备份硬盘分布式存储，java开发，全平台支持
+# timemachineplus (C++ port - initial skeleton)
 
-许可证：<br>
-本源代码许可证基于 GPL v3.
-具体见LICENSE文件[here](/LICENSE).
+这个目录包含将现有 Java 项目迁移到 C++ 的初始骨架。目标采用 C++17 和 CMake 构建系统。
 
-软件的介绍请参考我B站视频：<br>
-https://www.bilibili.com/video/BV1Ls4y1c7Wd/
+快速开始（在 Windows PowerShell）：
+
+```powershell
+# 从仓库根目录执行：
+cmake -S cpp -B cpp/build
+cmake --build cpp/build --config Release
+.
+```
+
+说明：当前为最小示例，主要包含 model 的 C++ 等价结构和一个示例 main。下一步会迁移数据库辅助和主逻辑。
