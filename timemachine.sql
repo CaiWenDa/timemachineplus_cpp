@@ -1,19 +1,3 @@
-/*
- Navicat Premium Data Transfer
-
- Source Server         : 192.168.0.223
- Source Server Type    : MySQL
- Source Server Version : 50717
- Source Host           : 192.168.0.223:3306
- Source Schema         : timemachine
-
- Target Server Type    : MySQL
- Target Server Version : 50717
- File Encoding         : 65001
-
- Date: 01/07/2023 10:58:06
-*/
-
 -- Disable foreign key checks (SQLite does not support this directly)
 PRAGMA foreign_keys = OFF;
 
