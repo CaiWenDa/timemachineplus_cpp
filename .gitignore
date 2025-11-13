@@ -35,10 +35,6 @@ bld/
 [Bb]uild
 [Tt]emp/
 
-# Include dir
-seqan/
-boost/
-
 # Visual Studio 2015/2017 cache/options directory
 .vs/
 .vscode/
@@ -370,5 +366,8 @@ MigrationBackup/
 FodyWeavers.xsd
 
 # Custom
+seqan/
+boost/
 *.csv
 *.exe
+CMakeSettings.json
