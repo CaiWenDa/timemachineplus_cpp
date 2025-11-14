@@ -3,9 +3,11 @@
 
 #include <string>
 
-namespace timemachine {
+namespace timemachine
+{
 
-struct BackupHistory {
+struct BackupHistory
+{
     int id = 0;
     long backupfileid = 0;
     long filesize = 0;
@@ -16,16 +18,18 @@ struct BackupHistory {
     std::string md5;
 };
 
-struct Backuproot {
+struct Backuproot
+{
     int id = 0;
     std::string rootpath;
 };
 
-struct Backuptargetroot {
+struct Backuptargetroot
+{
     int id = 0;
     std::string targetrootpath;
     std::string targetrootdir;
     long long spaceRemain = 0;
 };
 
-} // namespace timemachine
+}  // namespace timemachine

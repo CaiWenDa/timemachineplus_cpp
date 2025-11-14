@@ -1,9 +1,10 @@
-#include <iostream>
 #include <chrono>
+#include <iostream>
+
 #include "service_run.h"
 #include "util.h"
 
-int main(int argc, char *argv[])
+int main(int argc, char* argv[])
 {
     using namespace timemachine;
     std::cout << "timemachineplus C++ skeleton (C++17)" << std::endl;
@@ -15,7 +16,7 @@ int main(int argc, char *argv[])
         serviceRun.init();
         serviceRun.loadBackupRoot();
 
-        if (argc == 2)
+        if (argc >= 2)
         {
             if (std::string(argv[1]) == "checkdata")
             {
@@ -27,9 +28,15 @@ int main(int argc, char *argv[])
                 logger.info("begin to checkdata with hash");
                 serviceRun.checkdata(true);
             }
+            else if (std::string(argv[1]) == "restore")
+            {
+                serviceRun.restoreFile(argc > 2 ? argv[2] : "");
+                return 0;
+            }
             else
             {
-                logger.info("cleaning data from backuprootid: " + std::string(argv[1]));
+                logger.info("cleaning data from backuprootid: " +
+                            std::string(argv[1]));
                 serviceRun.deleteByBackuprootid(std::atol(argv[1]));
                 return 0;
             }
@@ -41,7 +48,7 @@ int main(int argc, char *argv[])
         logger.error(e.what());
     }
 #if _DEBUG
-    std::cin.get();
+    while (std::cin.get() != EOF);
 #endif
     return 0;
 }

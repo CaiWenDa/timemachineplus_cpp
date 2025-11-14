@@ -1,22 +1,15 @@
 #include "sqlite_helper.h"
 
-SQLiteHelper::SQLiteHelper(const std::string & dbname)
+SQLiteHelper::SQLiteHelper(const std::string& dbname)
     : m_dbname(dbname), m_dataBase(dbname, SQLite::OPEN_READWRITE)
 {
-
 }
 
-SQLiteHelper::~SQLiteHelper()
-{
-    close();
-}
+SQLiteHelper::~SQLiteHelper() { close(); }
 
-bool SQLiteHelper::valid()
-{
-    return m_dataBase.getHandle() != nullptr;
-}
+bool SQLiteHelper::valid() { return m_dataBase.getHandle() != nullptr; }
 
-bool SQLiteHelper::execSql(const std::string &sql)
+bool SQLiteHelper::execSql(const std::string& sql)
 {
     if (!valid())
     {
@@ -31,7 +24,8 @@ bool SQLiteHelper::execSql(const std::string &sql)
     return true;
 }
 
-std::unique_ptr<SQLite::Statement> SQLiteHelper::querySql(const std::string &sql)
+std::unique_ptr<SQLite::Statement> SQLiteHelper::querySql(
+    const std::string& sql)
 {
     if (!valid())
     {
@@ -43,7 +37,4 @@ std::unique_ptr<SQLite::Statement> SQLiteHelper::querySql(const std::string &sql
     }
 }
 
-void SQLiteHelper::close()
-{
-    ;
-}
+void SQLiteHelper::close() { ; }

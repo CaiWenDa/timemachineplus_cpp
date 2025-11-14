@@ -1,7 +1,7 @@
 #include "util.h"
-#include <filesystem>
 
-std::string Utils::replace(std::string str, const std::string& from, const std::string& to)
+std::string Utils::replace(std::string str, const std::string& from,
+                           const std::string& to)
 {
     size_t start_pos = 0;
     while ((start_pos = str.find(from, start_pos)) != std::string::npos)
@@ -38,7 +38,8 @@ std::string Utils::getFileMD5(const std::string& filePath)
     std::stringstream ss;
     for (const auto& byte : hash)
     {
-        ss << std::hex << std::setw(2) << std::setfill('0') << static_cast<int>(byte);
+        ss << std::hex << std::setw(2) << std::setfill('0')
+           << static_cast<int>(byte);
     }
 
     return ss.str();
@@ -47,8 +48,7 @@ std::string Utils::getFileMD5(const std::string& filePath)
 std::string Utils::trim(const std::string& str)
 {
     auto start = str.find_first_not_of(" \t\r\n");
-    if (start == std::string::npos)
-        return "";
+    if (start == std::string::npos) return "";
     auto end = str.find_last_not_of(" \t\r\n");
     return str.substr(start, end - start + 1);
 }

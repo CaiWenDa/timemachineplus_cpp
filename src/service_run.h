@@ -1,22 +1,27 @@
 #pragma once
 
-#include<vector>
+#include <vector>
+
 #include "models.h"
 #include "sqlite_helper.h"
 #include "util.h"
 
 class ServiceRun
 {
-public:
+   public:
     ServiceRun() : m_sqliteHelper("timemachine.db") {}
     void init();
     void loadBackupRoot();
     void deleteByBackuprootid(long rootid);
     void XCopy();
     void checkdata(bool withhash);
+    bool addSourcePath(const std::string& source);
+    bool addTargetPath(const std::string& target);
+    bool restoreFile(const std::string& filePath);
 
-private:
-    static void loadAllFiles(const std::string& pathName, std::vector<std::string>& fileList);
+   private:
+    static void loadAllFiles(const std::string& pathName,
+                             std::vector<std::string>& fileList);
     timemachine::Backuptargetroot getAvailableTarget(long long needspace);
     static void copyFile(const std::string& source, const std::string& dest);
     bool exeCopy(const std::string& fileName, long backupfileid);
@@ -24,9 +29,10 @@ private:
     int beginbackup();
     void finishbackup();
     std::string getTargetrootPath(int targetbkid);
-    void removeWastedData(long backupfilehistoryid, const std::string& backupfilefullpath);
+    void removeWastedData(long backupfilehistoryid,
+                          const std::string& backupfilefullpath);
 
-private:
+   private:
     SQLiteHelper m_sqliteHelper;
     static Utils::Log logger;
     std::vector<timemachine::Backuproot> m_backupRootList;

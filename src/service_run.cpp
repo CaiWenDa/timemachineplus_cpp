@@ -1,6 +1,8 @@
 ﻿#include "service_run.h"
 
+#include <algorithm>
 #include <chrono>
+#include <codecvt>
 #include <ctime>
 #include <filesystem>
 #include <fstream>
@@ -9,8 +11,6 @@
 #include <sstream>
 #include <string>
 #include <vector>
-#include <algorithm>
-#include <codecvt>
 
 #include "util.h"
 
@@ -34,11 +34,11 @@ void ServiceRun::loadBackupRoot()
     {
         while (res->executeStep())
         {
-            
             timemachine::Backuproot backuproot;
             backuproot.id = res->getColumn("id").getInt();
             backuproot.rootpath = res->getColumn("rootpath").getString();
-            if (!std::filesystem::exists(std::filesystem::u8path(backuproot.rootpath)))
+            if (!std::filesystem::exists(
+                    std::filesystem::u8path(backuproot.rootpath)))
             {
                 logger.error("No found backup source: " + backuproot.rootpath);
             }
@@ -56,32 +56,35 @@ void ServiceRun::loadBackupRoot()
         {
             timemachine::Backuptargetroot backuptargetroot;
             backuptargetroot.id = res->getColumn("id").getInt();
-            backuptargetroot.targetrootpath = res->getColumn("targetrootpath").getString();
+            backuptargetroot.targetrootpath =
+                res->getColumn("targetrootpath").getString();
             backuptargetroot.targetrootdir = targetBkDirName;
-            auto u8path = std::filesystem::u8path(backuptargetroot.targetrootpath);
+            auto u8path =
+                std::filesystem::u8path(backuptargetroot.targetrootpath);
             if (!std::filesystem::exists(u8path))
             {
                 std::filesystem::create_directory(u8path);
             }
             if (!std::filesystem::exists(u8path))
             {
-                logger.error("No found backup target: " + backuptargetroot.targetrootpath);
+                logger.error("No found backup target: " +
+                             backuptargetroot.targetrootpath);
             }
             else
             {
-                backuptargetroot.spaceRemain =
-                    static_cast<long long>(std::filesystem::space(u8path).available);
+                backuptargetroot.spaceRemain = static_cast<long long>(
+                    std::filesystem::space(u8path).available);
                 m_backupTargetRootList.push_back(backuptargetroot);
             }
         }
     }
 }
 
-void ServiceRun::loadAllFiles(const std::string &pathName,
-                              std::vector<std::string> &fileList)
+void ServiceRun::loadAllFiles(const std::string& pathName,
+                              std::vector<std::string>& fileList)
 {
-    for (const auto &entry :
-         std::filesystem::recursive_directory_iterator(pathName))
+    for (const auto& entry : std::filesystem::recursive_directory_iterator(
+             std::filesystem::u8path(pathName)))
     {
         if (!std::filesystem::is_directory(entry))
         {
@@ -99,11 +102,10 @@ timemachine::Backuptargetroot ServiceRun::getAvailableTarget(
     long long needspace)
 {
     std::vector<timemachine::Backuptargetroot> avaliedTarget;
-    for (auto &backupTargetRoot : m_backupTargetRootList)
+    for (auto& backupTargetRoot : m_backupTargetRootList)
     {
         auto u8path = std::filesystem::u8path(backupTargetRoot.targetrootpath);
-        backupTargetRoot.spaceRemain =
-            std::filesystem::space(u8path).available;
+        backupTargetRoot.spaceRemain = std::filesystem::space(u8path).available;
         if (backupTargetRoot.spaceRemain > needspace)
         {
             avaliedTarget.push_back(backupTargetRoot);
@@ -112,16 +114,14 @@ timemachine::Backuptargetroot ServiceRun::getAvailableTarget(
     if (!avaliedTarget.empty())
     {
         return *std::max_element(avaliedTarget.begin(), avaliedTarget.end(),
-                                 [](const timemachine::Backuptargetroot &a,
-                                    const timemachine::Backuptargetroot &b)
-                                 {
-                                     return a.spaceRemain < b.spaceRemain;
-                                 });
+                                 [](const timemachine::Backuptargetroot& a,
+                                    const timemachine::Backuptargetroot& b)
+                                 { return a.spaceRemain < b.spaceRemain; });
     }
     return timemachine::Backuptargetroot();
 }
 
-void ServiceRun::copyFile(const std::string &source, const std::string &dest)
+void ServiceRun::copyFile(const std::string& source, const std::string& dest)
 {
     try
     {
@@ -132,22 +132,20 @@ void ServiceRun::copyFile(const std::string &source, const std::string &dest)
         }
         std::filesystem::copy_file(std::filesystem::u8path(source), dest);
     }
-    catch (const std::exception &e)
+    catch (const std::exception& e)
     {
         logger.error(e.what());
         throw e;
     }
 }
 
-bool ServiceRun::exeCopy(const std::string &fileName, long backupfileid)
+bool ServiceRun::exeCopy(const std::string& fileName, long backupfileid)
 {
     auto u8fileName = std::filesystem::u8path(fileName);
     auto fileSize = std::filesystem::file_size(u8fileName);
-    auto lastWriteTime =
-        std::chrono::duration_cast<std::chrono::milliseconds>(
-            std::filesystem::last_write_time(u8fileName).time_since_epoch())
-            .count();
-    timemachine::Backuptargetroot backuptargetroot = getAvailableTarget(fileSize);
+    auto lastWriteTime = Utils::getSysFileMilliTimeStamp(u8fileName);
+    timemachine::Backuptargetroot backuptargetroot =
+        getAvailableTarget(fileSize);
     if (!backuptargetroot.spaceRemain)
     {
         logger.error("no space in all targetbackups! need:" +
@@ -159,15 +157,15 @@ bool ServiceRun::exeCopy(const std::string &fileName, long backupfileid)
     {
         md5str = Utils::getFileMD5(fileName);
     }
-    catch (const std::exception &e)
+    catch (const std::exception& e)
     {
         logger.error(e.what());
     }
 
-    auto timeStamp = Utils::getTimeStamp();
+    auto timeStamp = Utils::getMilliTimeStamp();
     std::string targetName = backuptargetroot.targetrootpath + "/" +
-                             backuptargetroot.targetrootdir + "/" + md5str + "_" +
-                             std::to_string(timeStamp);
+                             backuptargetroot.targetrootdir + "/" + md5str +
+                             "_" + std::to_string(timeStamp);
     std::string targetNameSave = "/" + backuptargetroot.targetrootdir + "/" +
                                  md5str + "_" + std::to_string(timeStamp);
     auto begincopysingle = Utils::Date::getDate();
@@ -175,7 +173,7 @@ bool ServiceRun::exeCopy(const std::string &fileName, long backupfileid)
     {
         copyFile(fileName, targetName);
     }
-    catch (const std::exception &)
+    catch (const std::exception&)
     {
         logger.error("failed to copy file from " + fileName + " to " +
                      targetName);
@@ -196,7 +194,7 @@ bool ServiceRun::exeCopy(const std::string &fileName, long backupfileid)
     return true;
 }
 
-void ServiceRun::XCopy(const timemachine::Backuproot &backuproot)
+void ServiceRun::XCopy(const timemachine::Backuproot& backuproot)
 {
     logger.info("Loading File list:" + backuproot.rootpath);
     std::vector<std::string> fileList;
@@ -220,8 +218,8 @@ void ServiceRun::XCopy(const timemachine::Backuproot &backuproot)
     }
     logger.info("begin xcopy! total:" + std::to_string(fileList.size()));
     long long counter = 0;
-    long long timestamp = Utils::getTimeStamp() / 1000;
-    for (const auto &file : fileList)
+    long long timestamp = Utils::getMilliTimeStamp() / 1000;
+    for (const auto& file : fileList)
     {
         if (file.find("/.") != std::string::npos ||
             file.find("\\.") != std::string::npos)
@@ -229,13 +227,13 @@ void ServiceRun::XCopy(const timemachine::Backuproot &backuproot)
             continue;
         }
         counter++;
-        if (Utils::getTimeStamp() / 1000 != timestamp)
+        if (Utils::getMilliTimeStamp() / 1000 != timestamp)
         {
-            timestamp = Utils::getTimeStamp() / 1000;
-            logger.info(
-                "copy progress:" + std::to_string(counter * 100 / fileList.size()) +
-                "%  " + std::to_string(counter) + "/" +
-                std::to_string(fileList.size()));
+            timestamp = Utils::getMilliTimeStamp() / 1000;
+            logger.info("copy progress:" +
+                        std::to_string(counter * 100 / fileList.size()) +
+                        "%  " + std::to_string(counter) + "/" +
+                        std::to_string(fileList.size()));
         }
 
         long id = 0;
@@ -248,7 +246,8 @@ void ServiceRun::XCopy(const timemachine::Backuproot &backuproot)
 
             m_sqliteHelper.execSql(
                 "insert into tb_backfiles "
-                "(backuprootid,filepath,versionhistorycnt,lastbackuptime) values (" +
+                "(backuprootid,filepath,versionhistorycnt,lastbackuptime) "
+                "values (" +
                 std::to_string(backuproot.id) + ",'" +
                 Utils::replace(Utils::replace(file, "\\", "\\\\"), "'", "\\'") +
                 "',0,datetime('now'))");
@@ -275,19 +274,17 @@ void ServiceRun::XCopy(const timemachine::Backuproot &backuproot)
             long long filesize = ret->getColumn("filesize").getInt64();
             std::string hash = ret->getColumn("md5").getString();
             long fidid = ret->getColumn("id").getInt();
-            auto lastWriteTime =
-                std::chrono::duration_cast<std::chrono::milliseconds>(
-                    std::filesystem::last_write_time(u8path).time_since_epoch())
-                    .count();
+            auto lastWriteTime = Utils::getSysFileMilliTimeStamp(u8path);
             if (lastmotify == lastWriteTime &&
                 filesize == std::filesystem::file_size(u8path))
             {
                 continue;
             }
-            logger.info("motify time indb:" + std::to_string(lastmotify) +
-                        " real:" + std::to_string(lastWriteTime) +
-                        " filesize indb:" + std::to_string(filesize) +
-                        " real:" + std::to_string(std::filesystem::file_size(u8path)));
+            logger.info(
+                "motify time indb:" + std::to_string(lastmotify) +
+                " real:" + std::to_string(lastWriteTime) +
+                " filesize indb:" + std::to_string(filesize) +
+                " real:" + std::to_string(std::filesystem::file_size(u8path)));
 
             if (lastmotify != lastWriteTime &&
                 filesize == std::filesystem::file_size(u8path))
@@ -295,13 +292,15 @@ void ServiceRun::XCopy(const timemachine::Backuproot &backuproot)
                 std::string md5str = Utils::getFileMD5(file);
                 if (md5str == hash)
                 {
-                    logger.info("historyfile id=[" + std::to_string(fidid) +
-                                "] backupid:[" + std::to_string(id) +
-                                "] not changed but motifytime diff, correcting...");
-                    m_sqliteHelper.execSql("update tb_backfilehistory set motifytime=" +
-                                           std::to_string(lastmotify) +
-                                           " where backupfileid=" + std::to_string(id) +
-                                           " and id=" + std::to_string(fidid));
+                    logger.info(
+                        "historyfile id=[" + std::to_string(fidid) +
+                        "] backupid:[" + std::to_string(id) +
+                        "] not changed but motifytime diff, correcting...");
+                    m_sqliteHelper.execSql(
+                        "update tb_backfilehistory set motifytime=" +
+                        std::to_string(lastWriteTime) +
+                        " where backupfileid=" + std::to_string(id) +
+                        " and id=" + std::to_string(fidid));
                     continue;
                 }
                 logger.info("hash indb:" + hash + " real:" + md5str);
@@ -341,7 +340,7 @@ void ServiceRun::finishbackup()
 void ServiceRun::deleteByBackuprootid(long rootid)
 {
     long counter = 0;
-    long long timestamp = Utils::getTimeStamp() / 1000;
+    long long timestamp = Utils::getMilliTimeStamp() / 1000;
     logger.info("loading files backuprootid=" + std::to_string(rootid));
     auto ret = m_sqliteHelper.querySql(
         "select id from tb_backfiles where backuprootid=" +
@@ -374,13 +373,14 @@ void ServiceRun::deleteByBackuprootid(long rootid)
             {
                 logger.error("not found target path:" + file);
             }
-            m_sqliteHelper.execSql("delete from tb_backfilehistory where id=" +
-                                   std::to_string(subret->getColumn("id").getInt()));
+            m_sqliteHelper.execSql(
+                "delete from tb_backfilehistory where id=" +
+                std::to_string(subret->getColumn("id").getInt()));
         }
         counter++;
-        if (Utils::getTimeStamp() / 1000 != timestamp)
+        if (Utils::getMilliTimeStamp() / 1000 != timestamp)
         {
-            timestamp = Utils::getTimeStamp() / 1000;
+            timestamp = Utils::getMilliTimeStamp() / 1000;
             logger.info("delete progress:" +
                         std::to_string(static_cast<size_t>(counter) * 100 /
                                        tbbackfilesList.size()) +
@@ -402,18 +402,18 @@ void ServiceRun::XCopy()
             return;
         }
     }
-    catch (const std::exception &e)
+    catch (const std::exception& e)
     {
         logger.error(e.what());
         return;
     }
-    for (const auto &backuproot : m_backupRootList)
+    for (const auto& backuproot : m_backupRootList)
     {
         try
         {
             XCopy(backuproot);
         }
-        catch (const std::exception &e)
+        catch (const std::exception& e)
         {
             logger.error(e.what());
         }
@@ -423,7 +423,7 @@ void ServiceRun::XCopy()
 
 std::string ServiceRun::getTargetrootPath(int targetbkid)
 {
-    for (const auto &backuptargetroot : m_backupTargetRootList)
+    for (const auto& backuptargetroot : m_backupTargetRootList)
     {
         if (backuptargetroot.id == targetbkid)
         {
@@ -434,9 +434,8 @@ std::string ServiceRun::getTargetrootPath(int targetbkid)
 }
 
 void ServiceRun::removeWastedData(long backupfilehistoryid,
-                                  const std::string &backupfilefullpath)
+                                  const std::string& backupfilefullpath)
 {
-    
     try
     {
         auto ret = m_sqliteHelper.querySql(
@@ -462,14 +461,14 @@ void ServiceRun::removeWastedData(long backupfilehistoryid,
                 int historycnt = ret->getColumn("count(*)").getInt();
                 if (historycnt == 0)
                 {
-                    
-                    m_sqliteHelper.execSql("delete from tb_backfiles where id=" +
-                                           std::to_string(backupfileid));
+                    m_sqliteHelper.execSql(
+                        "delete from tb_backfiles where id=" +
+                        std::to_string(backupfileid));
                 }
             }
         }
     }
-    catch (const std::exception &e)
+    catch (const std::exception& e)
     {
         logger.error(e.what());
     }
@@ -482,13 +481,13 @@ void ServiceRun::checkdata(bool withhash)
         logger.info("loading all file and check");
         int innercounter = 0;
         std::vector<timemachine::BackupHistory> historyList;
-        auto timestamp = Utils::getTimeStamp() / 1000;
+        auto timestamp = Utils::getMilliTimeStamp() / 1000;
         while (true)
         {
             int counter = 0;
-            auto ret =
-                m_sqliteHelper.querySql("select * from tb_backfilehistory limit " +
-                    std::to_string(innercounter) + ",1000");
+            auto ret = m_sqliteHelper.querySql(
+                "select * from tb_backfilehistory limit " +
+                std::to_string(innercounter) + ",1000");
             if (ret)
             {
                 while (ret->executeStep())
@@ -496,7 +495,8 @@ void ServiceRun::checkdata(bool withhash)
                     timemachine::BackupHistory backupHistory;
                     backupHistory.id = (ret->getColumn("id").getInt());
                     backupHistory.md5 = (ret->getColumn("md5").getString());
-                    backupHistory.filesize = (ret->getColumn("filesize").getInt());
+                    backupHistory.filesize =
+                        (ret->getColumn("filesize").getInt());
                     backupHistory.backupfileid =
                         (ret->getColumn("backupfileid").getInt());
                     backupHistory.backuptargetrootid =
@@ -512,9 +512,8 @@ void ServiceRun::checkdata(bool withhash)
                     auto u8path = std::filesystem::u8path(backuprootpath);
                     if (!std::filesystem::exists(u8path) ||
                         std::filesystem::file_size(u8path) !=
-                        backupHistory.filesize)
+                            backupHistory.filesize)
                     {
-
                         historyList.push_back(backupHistory);
                     }
                     else if (withhash)
@@ -522,16 +521,18 @@ void ServiceRun::checkdata(bool withhash)
                         std::string md5str = Utils::getFileMD5(backuprootpath);
                         if (backupHistory.md5 != md5str)
                         {
-
-                            logger.info("file hash not mismatch:" + backuprootpath);
+                            logger.info("file hash not mismatch:" +
+                                        backuprootpath);
                             historyList.push_back(backupHistory);
                         }
                     }
                     counter++;
-                    if (Utils::getTimeStamp() / 1000 != timestamp)
+                    if (Utils::getMilliTimeStamp() / 1000 != timestamp)
                     {
-                        timestamp = Utils::getTimeStamp() / 1000;
-                        logger.info("check num:" + std::to_string(innercounter + counter) +
+                        timestamp = Utils::getMilliTimeStamp() / 1000;
+                        logger.info(
+                            "check num:" +
+                            std::to_string(innercounter + counter) +
                             " found:" + std::to_string(historyList.size()));
                     }
                 }
@@ -547,14 +548,16 @@ void ServiceRun::checkdata(bool withhash)
         for (const auto& backupHistory : historyList)
         {
             innercounter++;
-            removeWastedData(backupHistory.id, backupHistory.backuptargetfullpath);
-            if (Utils::getTimeStamp() / 1000 != timestamp)
+            removeWastedData(backupHistory.id,
+                             backupHistory.backuptargetfullpath);
+            if (Utils::getMilliTimeStamp() / 1000 != timestamp)
             {
-                timestamp = Utils::getTimeStamp() / 1000;
-                logger.info("rm db count:" + std::to_string(innercounter) + " / " +
-                    std::to_string(static_cast<size_t>(innercounter) * 100 /
-                        historyList.size()) +
-                    "%");
+                timestamp = Utils::getMilliTimeStamp() / 1000;
+                logger.info("rm db count:" + std::to_string(innercounter) +
+                            " / " +
+                            std::to_string(static_cast<size_t>(innercounter) *
+                                           100 / historyList.size()) +
+                            "%");
             }
         }
     }
@@ -562,4 +565,87 @@ void ServiceRun::checkdata(bool withhash)
     {
         logger.error(e.what());
     }
+}
+
+bool ServiceRun::addSourcePath(const std::string& source)
+{
+    if (std::filesystem::exists(std::filesystem::u8path(source)))
+    {
+        return m_sqliteHelper.execSql(
+            "insert into tb_backuproot(rootpath)"
+            " values('" +
+            source + "')");
+    }
+    return false;
+}
+
+bool ServiceRun::addTargetPath(const std::string& target)
+{
+    if (std::filesystem::exists(std::filesystem::u8path(target)))
+    {
+        return m_sqliteHelper.execSql(
+            "insert into tb_backuptargetroot(targetrootpath)"
+            " values('" +
+            target + "')");
+    }
+    return false;
+}
+
+bool ServiceRun::restoreFile(const std::string& filePath)
+{
+#if WIN32
+    auto u8filePath = std::filesystem::path(filePath);
+#else
+    auto u8filePath = std::filesystem::u8path(filePath);
+#endif
+    if (std::filesystem::exists(u8filePath))
+    {
+        auto originFileName = u8filePath.filename();
+        auto uniFilePath = u8filePath.u8string();
+        std::replace(uniFilePath.begin(), uniFilePath.end(), '\\', '/');
+        std::string sql =
+            "select *"
+            "from tb_backfilehistory, tb_backfiles, tb_backuptargetroot "
+            "where tb_backfilehistory.backupfileid = tb_backfiles.id "
+            "and tb_backfilehistory.backuptargetrootid = "
+            "tb_backuptargetroot.id "
+            "and tb_backfiles.filepath = '" +
+            uniFilePath + "';";
+        auto ret = m_sqliteHelper.querySql(sql);
+        if (ret)
+        {
+            std::vector<std::filesystem::path> allPath;
+            int cnt = 0;
+            while (ret->executeStep())
+            {
+                auto targetPath = ret->getColumn("targetrootpath").getString();
+                auto fullBackupPath = std::filesystem::u8path(
+                    targetPath +
+                    ret->getColumn("backuptargetpath").getString());
+                auto modifyTime = static_cast<time_t>(
+                    ret->getColumn("motifytime").getInt64());
+
+                allPath.push_back(fullBackupPath);
+                logger.info("[" + std::to_string(++cnt) +
+                            "]: " + Utils::Date::toDate(modifyTime));
+            }
+            logger.info("若要恢复指定时间的版本，请输入对应时间的编号");
+            if (cnt)
+            {
+                int n = 0;
+                std::cin >> n;
+                n--;
+                if (n >= 0 && n < allPath.size() &&
+                    std::filesystem::exists(allPath.at(n)))
+                {
+                    std::filesystem::copy(
+                        allPath.at(n),
+                        u8filePath.replace_filename(originFileName),
+                        std::filesystem::copy_options::overwrite_existing);
+                    return true;
+                }
+            }
+        }
+    }
+    return false;
 }
