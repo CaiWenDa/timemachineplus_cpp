@@ -29,7 +29,7 @@ sqlite3 timemachine.db
 ```sql
 insert into tb_backuproot(rootpath) values ('/path/to/your/source');
 
-insert into tb_backuptargetroot(rootpath) values ('/path/to/your/target');
+insert into tb_backuptargetroot(targetrootpath) values ('/path/to/your/target');
 ```
 
 说明：当前为测试版本，功能完整性和稳定性需要进一步测试反馈
