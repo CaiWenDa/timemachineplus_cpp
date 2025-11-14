@@ -29,7 +29,7 @@ void ServiceRun::init()
 void ServiceRun::loadBackupRoot()
 {
     logger.info("loadBackupRoot");
-    auto res = m_sqliteHelper.querySql("select * from tb_backuproot");
+    auto res = m_sqliteHelper.prepareQuery("select * from tb_backuproot");
     if (res)
     {
         while (res->executeStep())
@@ -49,7 +49,7 @@ void ServiceRun::loadBackupRoot()
         }
     }
 
-    res = m_sqliteHelper.querySql("select * from tb_backuptargetroot");
+    res = m_sqliteHelper.prepareQuery("select * from tb_backuptargetroot");
     if (res)
     {
         while (res->executeStep())
@@ -88,7 +88,7 @@ void ServiceRun::loadAllFiles(const std::string& pathName,
     {
         if (!std::filesystem::is_directory(entry))
         {
-            const auto path = entry.path().generic_u8string();
+            const auto path = entry.path().u8string();
             if (path.find("/.") == std::string::npos &&
                 path.find("\\.") == std::string::npos)
             {
@@ -168,7 +168,7 @@ bool ServiceRun::exeCopy(const std::string& fileName, long backupfileid)
                              "_" + std::to_string(timeStamp);
     std::string targetNameSave = "/" + backuptargetroot.targetrootdir + "/" +
                                  md5str + "_" + std::to_string(timeStamp);
-    auto begincopysingle = Utils::Date::getDate();
+    auto begincopysingle = Utils::Date::getCurrentDateTime();
     try
     {
         copyFile(fileName, targetName);
@@ -187,7 +187,7 @@ bool ServiceRun::exeCopy(const std::string& fileName, long backupfileid)
         " values (" +
         std::to_string(backupfileid) + "," + std::to_string(m_backupId) + "," +
         std::to_string(lastWriteTime) + "," + std::to_string(fileSize) + ",'" +
-        begincopysingle + "','" + Utils::Date::getDate() + "','" +
+        begincopysingle + "','" + Utils::Date::getCurrentDateTime() + "','" +
         targetNameSave + "'," + std::to_string(backuptargetroot.id) + ",'" +
         md5str + "')");
     logger.info("copy file from " + fileName + " to " + targetName);
@@ -205,7 +205,7 @@ void ServiceRun::XCopy(const timemachine::Backuproot& backuproot)
     std::string sqlquery =
         "select id,filepath from tb_backfiles where backuprootid=" +
         std::to_string(backuproot.id);
-    auto ret = m_sqliteHelper.querySql(sqlquery);
+    auto ret = m_sqliteHelper.prepareQuery(sqlquery);
     if (ret)
     {
         while (ret->executeStep())
@@ -251,7 +251,7 @@ void ServiceRun::XCopy(const timemachine::Backuproot& backuproot)
                 std::to_string(backuproot.id) + ",'" +
                 Utils::replace(Utils::replace(file, "\\", "\\\\"), "'", "\\'") +
                 "',0,datetime('now'))");
-            auto ret = m_sqliteHelper.querySql(sqlquery);
+            auto ret = m_sqliteHelper.prepareQuery(sqlquery);
             if (!ret || !ret->executeStep())
             {
                 logger.error("内部错误！数据库异常，退出...");
@@ -264,7 +264,7 @@ void ServiceRun::XCopy(const timemachine::Backuproot& backuproot)
             id = mapFile.at(file);
         }
 
-        auto ret = m_sqliteHelper.querySql(
+        auto ret = m_sqliteHelper.prepareQuery(
             "select * from tb_backfilehistory where backupfileid=" +
             std::to_string(id) + " order by id desc limit 1");
         auto u8path = std::filesystem::u8path(file);
@@ -320,7 +320,7 @@ int ServiceRun::beginbackup()
 {
     m_sqliteHelper.execSql(
         "insert into tb_backup (begintime) values(datetime('now'))");
-    auto ret = m_sqliteHelper.querySql("select last_insert_rowid() as id");
+    auto ret = m_sqliteHelper.prepareQuery("select last_insert_rowid() as id");
     if (ret && ret->executeStep())
     {
         return ret->getColumn("id").getInt();
@@ -342,7 +342,7 @@ void ServiceRun::deleteByBackuprootid(long rootid)
     long counter = 0;
     long long timestamp = Utils::getMilliTimeStamp() / 1000;
     logger.info("loading files backuprootid=" + std::to_string(rootid));
-    auto ret = m_sqliteHelper.querySql(
+    auto ret = m_sqliteHelper.prepareQuery(
         "select id from tb_backfiles where backuprootid=" +
         std::to_string(rootid));
     std::vector<long> tbbackfilesList;
@@ -357,7 +357,7 @@ void ServiceRun::deleteByBackuprootid(long rootid)
 
     for (const long id : tbbackfilesList)
     {
-        auto subret = m_sqliteHelper.querySql(
+        auto subret = m_sqliteHelper.prepareQuery(
             "select id,backuptargetpath from tb_backfilehistory where "
             "backupfileid=" +
             std::to_string(id));
@@ -438,7 +438,7 @@ void ServiceRun::removeWastedData(long backupfilehistoryid,
 {
     try
     {
-        auto ret = m_sqliteHelper.querySql(
+        auto ret = m_sqliteHelper.prepareQuery(
             "select backupfileid from tb_backfilehistory where id=" +
             std::to_string(backupfilehistoryid));
         if (ret && ret->executeStep())
@@ -453,7 +453,7 @@ void ServiceRun::removeWastedData(long backupfilehistoryid,
                 logger.info("delete broken file:" + backupfilefullpath);
                 std::filesystem::remove(u8path);
             }
-            ret = m_sqliteHelper.querySql(
+            ret = m_sqliteHelper.prepareQuery(
                 "select count(*) from tb_backfilehistory where backupfileid=" +
                 std::to_string(backupfileid));
             if (ret && ret->executeStep())
@@ -485,7 +485,7 @@ void ServiceRun::checkdata(bool withhash)
         while (true)
         {
             int counter = 0;
-            auto ret = m_sqliteHelper.querySql(
+            auto ret = m_sqliteHelper.prepareQuery(
                 "select * from tb_backfilehistory limit " +
                 std::to_string(innercounter) + ",1000");
             if (ret)
@@ -569,39 +569,88 @@ void ServiceRun::checkdata(bool withhash)
 
 bool ServiceRun::addSourcePath(const std::string& source)
 {
-    if (std::filesystem::exists(std::filesystem::u8path(source)))
+    auto path = std::filesystem::path(source);
+    if (std::filesystem::exists(path))
     {
-        return m_sqliteHelper.execSql(
+        auto ret = m_sqliteHelper.prepareQuery(
             "insert into tb_backuproot(rootpath)"
-            " values('" +
-            source + "')");
+            " values(:value)");
+        if (ret)
+        {
+            ret->bind(":value", path.u8string());
+            if (ret->exec())
+            {
+                logger.info("add source path success:" + source);
+                return true;
+            }
+        }
     }
     return false;
 }
 
 bool ServiceRun::addTargetPath(const std::string& target)
 {
-    if (std::filesystem::exists(std::filesystem::u8path(target)))
+    auto path = std::filesystem::path(target);
+    if (std::filesystem::exists(path))
     {
-        return m_sqliteHelper.execSql(
+        auto ret = m_sqliteHelper.prepareQuery(
             "insert into tb_backuptargetroot(targetrootpath)"
-            " values('" +
-            target + "')");
+            " values(:value)");
+        if (ret)
+        {
+            ret->bind(":value", path.u8string());
+            if (ret->exec())
+            {
+                logger.info("add target path success: " + target);
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+bool ServiceRun::removeSourcePath(const std::string& source)
+{
+    auto ret = m_sqliteHelper.prepareQuery(
+        "delete from tb_backuproot"
+        " where rootpath = :value");
+    if (ret)
+    {
+        ret->bind(":value", std::filesystem::path(source).u8string());
+        if (ret->exec())
+        {
+            logger.info("delete source path success: " + source);
+            return true;
+        }
+    }
+    return false;
+}
+
+bool ServiceRun::removeTargetPath(const std::string& target)
+{
+    auto ret = m_sqliteHelper.prepareQuery(
+        "delete from tb_backuptargetroot"
+        " where targetrootpath = :value");
+    if (ret)
+    {
+        ret->bind(":value", std::filesystem::path(target).u8string());
+        if (ret->exec())
+        {
+            logger.info("delete target path success: " + target);
+            return true;
+        }
     }
     return false;
 }
 
 bool ServiceRun::restoreFile(const std::string& filePath)
 {
-#if WIN32
-    auto u8filePath = std::filesystem::path(filePath);
-#else
-    auto u8filePath = std::filesystem::u8path(filePath);
-#endif
-    if (std::filesystem::exists(u8filePath))
+    auto path = std::filesystem::path(filePath);
+
+    if (std::filesystem::exists(path))
     {
-        auto originFileName = u8filePath.filename();
-        auto uniFilePath = u8filePath.u8string();
+        auto originFileName = path.filename();
+        auto uniFilePath = path.u8string();
         std::replace(uniFilePath.begin(), uniFilePath.end(), '\\', '/');
         std::string sql =
             "select *"
@@ -609,11 +658,11 @@ bool ServiceRun::restoreFile(const std::string& filePath)
             "where tb_backfilehistory.backupfileid = tb_backfiles.id "
             "and tb_backfilehistory.backuptargetrootid = "
             "tb_backuptargetroot.id "
-            "and tb_backfiles.filepath = '" +
-            uniFilePath + "';";
-        auto ret = m_sqliteHelper.querySql(sql);
+            "and tb_backfiles.filepath = :value";
+        auto ret = m_sqliteHelper.prepareQuery(sql);
         if (ret)
         {
+            ret->bind(":value", uniFilePath);
             std::vector<std::filesystem::path> allPath;
             int cnt = 0;
             while (ret->executeStep())
@@ -627,7 +676,7 @@ bool ServiceRun::restoreFile(const std::string& filePath)
 
                 allPath.push_back(fullBackupPath);
                 logger.info("[" + std::to_string(++cnt) +
-                            "]: " + Utils::Date::toDate(modifyTime));
+                            "]: " + Utils::Date::getDateFromMillis(modifyTime));
             }
             logger.info("若要恢复指定时间的版本，请输入对应时间的编号");
             if (cnt)
@@ -639,9 +688,11 @@ bool ServiceRun::restoreFile(const std::string& filePath)
                     std::filesystem::exists(allPath.at(n)))
                 {
                     std::filesystem::copy(
-                        allPath.at(n),
-                        u8filePath.replace_filename(originFileName),
+                        allPath.at(n), path.replace_filename(originFileName),
                         std::filesystem::copy_options::overwrite_existing);
+                    logger.info(
+                        "restore file success: " +
+                        path.replace_filename(originFileName).u8string());
                     return true;
                 }
             }

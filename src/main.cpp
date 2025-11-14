@@ -28,10 +28,46 @@ int main(int argc, char* argv[])
                 logger.info("begin to checkdata with hash");
                 serviceRun.checkdata(true);
             }
+            else if (std::string(argv[1]) == "add")
+            {
+                if (argc == 4)
+                {
+                    if (std::string(argv[2]) == "-s")
+                    {
+                        return !serviceRun.addSourcePath(argv[3]);
+                    }
+                    else if (std::string(argv[2]) == "-t")
+                    {
+                        return !serviceRun.addTargetPath(argv[3]);
+                    }
+                }
+                logger.error("invalid args");
+                return 1;
+            }
+            else if (std::string(argv[1]) == "rm")
+            {
+                if (argc == 4)
+                {
+                    if (std::string(argv[2]) == "-s")
+                    {
+                        return !serviceRun.removeSourcePath(argv[3]);
+                    }
+                    else if (std::string(argv[2]) == "-t")
+                    {
+                        return !serviceRun.removeTargetPath(argv[3]);
+                    }
+                }
+                logger.error("invalid args");
+                return 1;
+            }
             else if (std::string(argv[1]) == "restore")
             {
-                serviceRun.restoreFile(argc > 2 ? argv[2] : "");
-                return 0;
+                if (argc == 3)
+                {
+                    return !serviceRun.restoreFile(argv[2]);
+                }
+                logger.error("invalid args");
+                return 1;
             }
             else
             {
@@ -48,7 +84,8 @@ int main(int argc, char* argv[])
         logger.error(e.what());
     }
 #if _DEBUG
-    while (std::cin.get() != EOF);
+    while (std::cin.get() != EOF)
+        ;
 #endif
     return 0;
 }

@@ -17,6 +17,8 @@ class ServiceRun
     void checkdata(bool withhash);
     bool addSourcePath(const std::string& source);
     bool addTargetPath(const std::string& target);
+    bool removeSourcePath(const std::string& source);
+    bool removeTargetPath(const std::string& target);
     bool restoreFile(const std::string& filePath);
 
    private:

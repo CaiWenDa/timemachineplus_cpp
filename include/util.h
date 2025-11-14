@@ -15,7 +15,7 @@ namespace Utils
 class Date
 {
    public:
-    static std::string getDate()
+    static std::string getCurrentDateTime()
     {
         // 获取当前时间点
         auto now = std::chrono::system_clock::now();
@@ -29,16 +29,13 @@ class Date
         return ss.str();
     }
 
-    static std::string toDate(time_t stamp)
+    static std::string getDateFromMillis(time_t millisec)
     {
         std::stringstream ss;
-
-        // 使用chrono库将毫秒转换为seconds
-        stamp = std::chrono::duration_cast<std::chrono::seconds>(
-                    std::chrono::milliseconds(stamp))
-                    .count();
-        auto tm = std::localtime(&std::time_t(stamp));
-        if (tm)
+        std::chrono::milliseconds ms(millisec);
+        std::chrono::time_point<std::chrono::system_clock> tp(ms);
+        std::time_t t = std::chrono::system_clock::to_time_t(tp);
+        if (auto tm = std::localtime(&t))
         {
             ss << std::put_time(tm, "%Y-%m-%d %H:%M:%S");
         }
@@ -82,7 +79,7 @@ class Log
     void log(const std::string& level, const std::string& message)
     {
         std::lock_guard<std::mutex> lock(logMutex);
-        std::string timestamp = Date::getDate();
+        std::string timestamp = Date::getCurrentDateTime();
         std::string logMessage =
             "[" + timestamp + "] [" + level + "] " + message;
 
