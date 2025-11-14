@@ -370,4 +370,5 @@ seqan/
 boost/
 *.csv
 *.exe
+.clang-format
 CMakeSettings.json

@@ -16,11 +16,9 @@ add_subdirectory(thirdparty/SQLiteCpp)
 
 add_executable(timemachineplus
     src/main.cpp
-    "src/sqlite_helper.cpp"
+    src/sqlite_helper.cpp
     src/service_run.cpp
-    "src/service_run.h"
-    "src/util.h"
-    "src/util.cpp")
+    src/util.cpp)
 
 # Find OpenSSL for MD5 hashing
 find_package(OpenSSL REQUIRED)
