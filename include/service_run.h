@@ -16,6 +16,7 @@ class ServiceRun
     void deleteByBackuprootid(int64_t rootid);
     void XCopy();
     void checkdata(bool withhash);
+    void listBackupPaths();
     bool addSourcePath(const std::string& source);
     bool addTargetPath(const std::string& target);
     bool removeSourcePath(const std::string& source);

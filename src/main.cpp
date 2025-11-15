@@ -32,6 +32,11 @@ int main(int argc, char* argv[])
                 logger.info("begin to checkdata with hash");
                 serviceRun.checkdata(true);
             }
+            else if (cmd == "list")
+            {
+                serviceRun.listBackupPaths();
+                return 0;
+            }
             else if (cmd == "add")
             {
                 if (argc == 4)

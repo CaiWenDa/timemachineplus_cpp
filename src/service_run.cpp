@@ -589,6 +589,20 @@ void ServiceRun::checkdata(bool withhash)
     }
 }
 
+void ServiceRun::listBackupPaths()
+{
+    logger.info("Source Backup Paths:");
+    for (const auto& backuproot : m_backupRootList)
+    {
+        logger.info(" - " + backuproot.rootpath);
+    }
+    logger.info("Target Backup Paths:");
+    for (const auto& backuptargetroot : m_backupTargetRootList)
+    {
+        logger.info(" - " + backuptargetroot.targetrootpath);
+    }
+}
+
 bool ServiceRun::addSourcePath(const std::string& source)
 {
     const auto path = std::filesystem::path(source);
@@ -669,8 +683,7 @@ bool ServiceRun::restoreFile(const std::string& filePath)
     if (std::filesystem::exists(path))
     {
         const auto originFileName = path.filename();
-        auto uniFilePath = path.u8string();
-        std::replace(uniFilePath.begin(), uniFilePath.end(), '\\', '/');
+        auto safeFilePath = Utils::replace(path.u8string(), "\\", "\\\\");
         const std::string sql =
             "select * from tb_backfilehistory, tb_backfiles, "
             "tb_backuptargetroot "
@@ -680,7 +693,7 @@ bool ServiceRun::restoreFile(const std::string& filePath)
             "and tb_backfiles.filepath = :value";
         if (auto ret = m_sqliteHelper.prepareQuery(sql); ret)
         {
-            ret->bind(":value", uniFilePath);
+            ret->bind(":value", safeFilePath);
             std::vector<std::filesystem::path> allPath;
             allPath.reserve(8);
             int cnt = 0;
@@ -696,10 +709,10 @@ bool ServiceRun::restoreFile(const std::string& filePath)
                 logger.info("[" + std::to_string(++cnt) +
                             "]: " + Utils::Date::getDateFromMillis(modifyTime));
             }
-            logger.info("若要恢复指定时间的版本，请输入对应时间的编号");
             if (cnt)
             {
                 int n = 0;
+                logger.info("若要恢复指定时间的版本，请输入对应时间的编号");
                 std::cin >> n;
                 --n;
                 if (n >= 0 && n < static_cast<int>(allPath.size()) &&
@@ -708,10 +721,13 @@ bool ServiceRun::restoreFile(const std::string& filePath)
                     std::filesystem::copy(
                         allPath.at(n), path.replace_filename(originFileName),
                         std::filesystem::copy_options::overwrite_existing);
-                    logger.info("restore file success: " +
-                                path.replace_filename(originFileName).u8string());
+                    logger.info("restore file success: " + filePath);
                     return true;
                 }
+            }
+            else
+            {
+                logger.info("没有文件: " + filePath + " 的早期版本");
             }
         }
     }
