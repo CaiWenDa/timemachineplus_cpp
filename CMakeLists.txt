@@ -29,5 +29,8 @@ endif()
 
 # Link SQLiteCpp_example1 with SQLiteCpp
 # target_link_libraries(timemachineplus SQLiteCpp)
-
+if(LINUX)
+    set(CMAKE_BUILD_WITH_INSTALL_RPATH TRUE)
+    set_target_properties(timemachineplus PROPERTIES INSTALL_RPATH "$ORIGIN")
+endif()
 install(TARGETS timemachineplus DESTINATION bin)
