@@ -44,7 +44,7 @@ bool SQLiteHelper::execSql(const std::string& sql)
     {
         std::cerr << "SQLiteHelper::execSql error: " << e.what() << " SQL:["
                   << sql << "]\n";
-        throw e;
+        throw;
     }
 }
 

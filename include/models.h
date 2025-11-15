@@ -2,6 +2,7 @@
 #pragma once
 
 #include <string>
+#include <cstdint>
 
 namespace timemachine
 {
@@ -9,9 +10,9 @@ namespace timemachine
 struct BackupHistory
 {
     int id = 0;
-    long backupfileid = 0;
-    long filesize = 0;
-    long motifytime = 0;
+    int64_t backupfileid = 0;
+    int64_t filesize = 0;
+    int64_t motifytime = 0;
     std::string backuptargetpath;
     std::string backuptargetfullpath;
     int backuptargetrootid = 0;
@@ -29,7 +30,7 @@ struct Backuptargetroot
     int id = 0;
     std::string targetrootpath;
     std::string targetrootdir;
-    long long spaceRemain = 0;
+    uintmax_t spaceRemain = 0;
 };
 
 }  // namespace timemachine

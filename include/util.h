@@ -3,6 +3,7 @@
 
 #include <chrono>
 #include <ctime>
+#include <cstdint>
 #include <filesystem>
 #include <fstream>
 #include <iomanip>
@@ -80,8 +81,7 @@ class Log
     {
         std::lock_guard<std::mutex> lock(logMutex);
         std::string timestamp = Date::getCurrentDateTime();
-        std::string logMessage =
-            "[" + timestamp + "] [" + level + "] " + message;
+        std::string logMessage = "[" + timestamp + "] [" + level + "] " + message;
 
         // Write to console
         std::cerr << logMessage << std::endl;
@@ -94,12 +94,11 @@ class Log
     }
 };
 
-std::string replace(std::string str, const std::string& from,
-                    const std::string& to);
+std::string replace(std::string str, const std::string& from, const std::string& to);
 std::string trim(const std::string& str);
 std::string getFileMD5(const std::string& filePath);
 
-inline long long getMilliTimeStamp()
+inline int64_t getMilliTimeStamp()
 {
     return std::chrono::duration_cast<std::chrono::milliseconds>(
                std::chrono::system_clock::now().time_since_epoch())

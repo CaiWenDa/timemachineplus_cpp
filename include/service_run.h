@@ -1,6 +1,7 @@
 #pragma once
 
 #include <vector>
+#include <cstdint>
 
 #include "models.h"
 #include "sqlite_helper.h"
@@ -12,7 +13,7 @@ class ServiceRun
     ServiceRun() : m_sqliteHelper("timemachine.db") {}
     void init();
     void loadBackupRoot();
-    void deleteByBackuprootid(long rootid);
+    void deleteByBackuprootid(int64_t rootid);
     void XCopy();
     void checkdata(bool withhash);
     bool addSourcePath(const std::string& source);
@@ -24,23 +25,23 @@ class ServiceRun
    private:
     static void loadAllFiles(const std::string& pathName,
                              std::vector<std::string>& fileList);
-    timemachine::Backuptargetroot getAvailableTarget(long long needspace);
+    std::optional<timemachine::Backuptargetroot> getAvailableTarget(uintmax_t needspace);
     static void copyFile(const std::string& source, const std::string& dest);
-    bool exeCopy(const std::string& fileName, long backupfileid);
+    bool exeCopy(const std::string& fileName, int64_t backupfileid);
     void XCopy(const timemachine::Backuproot& backuproot);
     int beginbackup();
     void finishbackup();
     std::string getTargetrootPath(int targetbkid);
-    void removeWastedData(long backupfilehistoryid,
+    void removeWastedData(int64_t backupfilehistoryid,
                           const std::string& backupfilefullpath);
 
    private:
     SQLiteHelper m_sqliteHelper;
-    static Utils::Log logger;
+    inline static Utils::Log logger;
     std::vector<timemachine::Backuproot> m_backupRootList;
     std::vector<timemachine::Backuptargetroot> m_backupTargetRootList;
-    long m_fileCopyCount = 0;
-    long long m_dataCopyCount = 0;
+    int64_t m_fileCopyCount = 0;
+    int64_t m_dataCopyCount = 0;
     int m_backupId = 0;
-    static const std::string targetBkDirName;
+    inline static constexpr std::string_view targetBkDirName = "BACKUPDATABASE";
 };
