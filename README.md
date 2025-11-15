@@ -18,18 +18,29 @@ https://www.bilibili.com/video/BV1Ls4y1c7Wd/
 快速开始（仅在 Windows）：
 
 1. 下载 [release](https://github.com/CaiWenDa/timemachineplus_cpp/releases/tag/release) 版本
-2. sqlite3 打开数据库 timemachine.db
+2. 使用 add 命令添加备份源和目标目录
 
 ```shell
-sqlite3 timemachine.db
+timemachineplus add -s /path/to/your/source
+timemachineplus add -t /path/to/your/target
 ```
 
-3. 通过sql语句准备备份源路径和目标路径
-
-```sql
-insert into tb_backuproot(rootpath) values ('/path/to/your/source');
-
-insert into tb_backuptargetroot(targetrootpath) values ('/path/to/your/target');
+3. 使用 restore 命令恢复备份
+```shell
+timemachineplus restore /path/to/your/source/filename
 ```
+4. 使用 rm 命令删除备份源或目标目录
+
+```shell
+timemachineplus rm -s /path/to/your/source
+timemachineplus rm -t /path/to/your/target
+```
+
+5. 列出所有备份源和目标目录
+```shell
+timemachineplus list
+```
+
+6. 无参数运行 timemachineplus 即可实现开始备份
 
 说明：当前为测试版本，功能完整性和稳定性需要进一步测试反馈
