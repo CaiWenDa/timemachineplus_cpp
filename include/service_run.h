@@ -1,7 +1,7 @@
 #pragma once
 
-#include <vector>
 #include <cstdint>
+#include <vector>
 
 #include "models.h"
 #include "sqlite_helper.h"
@@ -15,6 +15,7 @@ class ServiceRun
     void loadBackupRoot();
     void deleteByBackuprootid(int64_t rootid);
     void XCopy();
+    // 检查备份是否损坏并移除损坏备份
     void checkdata(bool withhash);
     void listBackupPaths();
     bool addSourcePath(const std::string& source);

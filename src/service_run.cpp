@@ -386,6 +386,7 @@ void ServiceRun::deleteByBackuprootid(int64_t rootid)
                     std::to_string(id));
                 subret && subret->executeStep())
             {
+                // TODO 修复路径错误
                 const auto file = subret->getColumn("backuptargetpath").getString();
                 const auto u8path = u8path_from(file);
                 if (std::filesystem::exists(u8path))
@@ -567,7 +568,7 @@ void ServiceRun::checkdata(bool withhash)
         }
 
         innercounter = 0;
-        logger.info("begin removing wasted backup file recoreds");
+        logger.info("begin removing wasted backup file records");
         for (const auto& backupHistory : historyList)
         {
             ++innercounter;
