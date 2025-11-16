@@ -680,56 +680,52 @@ bool ServiceRun::removeTargetPath(const std::string& target)
 bool ServiceRun::restoreFile(const std::string& filePath)
 {
     auto path = std::filesystem::path(filePath);
-
-    if (std::filesystem::exists(path))
+    const auto originFileName = path.filename();
+    auto safeFilePath = Utils::replace(path.u8string(), "\\", "\\\\");
+    const std::string sql =
+        "select * from tb_backfilehistory, tb_backfiles, "
+        "tb_backuptargetroot "
+        "where tb_backfilehistory.backupfileid = tb_backfiles.id "
+        "and tb_backfilehistory.backuptargetrootid = "
+        "tb_backuptargetroot.id "
+        "and tb_backfiles.filepath = :value";
+    if (auto ret = m_sqliteHelper.prepareQuery(sql); ret)
     {
-        const auto originFileName = path.filename();
-        auto safeFilePath = Utils::replace(path.u8string(), "\\", "\\\\");
-        const std::string sql =
-            "select * from tb_backfilehistory, tb_backfiles, "
-            "tb_backuptargetroot "
-            "where tb_backfilehistory.backupfileid = tb_backfiles.id "
-            "and tb_backfilehistory.backuptargetrootid = "
-            "tb_backuptargetroot.id "
-            "and tb_backfiles.filepath = :value";
-        if (auto ret = m_sqliteHelper.prepareQuery(sql); ret)
+        ret->bind(":value", safeFilePath);
+        std::vector<std::filesystem::path> allPath;
+        allPath.reserve(8);
+        int cnt = 0;
+        while (ret->executeStep())
         {
-            ret->bind(":value", safeFilePath);
-            std::vector<std::filesystem::path> allPath;
-            allPath.reserve(8);
-            int cnt = 0;
-            while (ret->executeStep())
-            {
-                const auto targetPath = ret->getColumn("targetrootpath").getString();
-                const auto fullBackupPath = u8path_from(
-                    targetPath + ret->getColumn("backuptargetpath").getString());
-                const auto modifyTime =
-                    static_cast<time_t>(ret->getColumn("motifytime").getInt64());
+            const auto targetPath = ret->getColumn("targetrootpath").getString();
+            const auto fullBackupPath = u8path_from(
+                targetPath + ret->getColumn("backuptargetpath").getString());
+            const auto modifyTime =
+                static_cast<time_t>(ret->getColumn("motifytime").getInt64());
 
-                allPath.emplace_back(fullBackupPath);
-                logger.info("[" + std::to_string(++cnt) +
-                            "]: " + Utils::Date::getDateFromMillis(modifyTime));
-            }
-            if (cnt)
+            allPath.emplace_back(fullBackupPath);
+            logger.info("[" + std::to_string(++cnt) +
+                        "]: " + Utils::Date::getDateFromMillis(modifyTime));
+        }
+        if (cnt)
+        {
+            int n = 0;
+            logger.info("若要恢复指定时间的版本，请输入对应时间的编号");
+            std::cin >> n;
+            --n;
+            if (n >= 0 && n < static_cast<int>(allPath.size()) &&
+                std::filesystem::exists(allPath.at(n)))
             {
-                int n = 0;
-                logger.info("若要恢复指定时间的版本，请输入对应时间的编号");
-                std::cin >> n;
-                --n;
-                if (n >= 0 && n < static_cast<int>(allPath.size()) &&
-                    std::filesystem::exists(allPath.at(n)))
-                {
-                    std::filesystem::copy(
-                        allPath.at(n), path.replace_filename(originFileName),
-                        std::filesystem::copy_options::overwrite_existing);
-                    logger.info("restore file success: " + filePath);
-                    return true;
-                }
+                std::filesystem::copy(
+                    allPath.at(n), path.replace_filename(originFileName),
+                    std::filesystem::copy_options::overwrite_existing);
+                logger.info("restore file success: " + filePath);
+                return true;
             }
-            else
-            {
-                logger.info("没有文件: " + filePath + " 的早期版本");
-            }
+        }
+        else
+        {
+            logger.info("没有文件: " + filePath + " 的早期版本");
         }
     }
     return false;
