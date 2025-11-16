@@ -101,7 +101,8 @@ void ServiceRun::loadAllFiles(const std::string& pathName,
         if (!entry.is_directory())
         {
             const auto u8pathStr = entry.path().u8string();
-            if (u8pathStr.find("/.") == std::string::npos && u8pathStr.find("\\.") == std::string::npos)
+            if (u8pathStr.find("/.") == std::string::npos &&
+                u8pathStr.find("\\.") == std::string::npos)
             {
                 fileList.emplace_back(u8pathStr);
             }
@@ -275,7 +276,8 @@ void ServiceRun::XCopy(const timemachine::Backuproot& backuproot)
                 "insert into tb_backfiles "
                 "(backuprootid,filepath,versionhistorycnt,lastbackuptime) "
                 "values (" +
-                std::to_string(backuproot.id) + ",'" + safeFile + "',0,datetime('now'))");
+                std::to_string(backuproot.id) + ",'" + safeFile +
+                "',0,datetime('now', 'localtime'))");
 
             if (auto newStmt = m_sqliteHelper.prepareQuery(insertSql);
                 newStmt && newStmt->executeStep())
@@ -346,7 +348,8 @@ void ServiceRun::XCopy(const timemachine::Backuproot& backuproot)
 
 int ServiceRun::beginbackup()
 {
-    m_sqliteHelper.execSql("insert into tb_backup (begintime) values(datetime('now'))");
+    m_sqliteHelper.execSql(
+        "insert into tb_backup (begintime) values(datetime('now', 'localtime'))");
     if (auto ret = m_sqliteHelper.prepareQuery("select last_insert_rowid() as id");
         ret && ret->executeStep())
     {
@@ -357,10 +360,10 @@ int ServiceRun::beginbackup()
 
 void ServiceRun::finishbackup()
 {
-    m_sqliteHelper.execSql("update tb_backup set endtime=datetime('now'),filecopycount=" +
-                           std::to_string(m_fileCopyCount) +
-                           ",datacopycount=" + std::to_string(m_dataCopyCount) +
-                           " where id=" + std::to_string(m_backupId));
+    m_sqliteHelper.execSql(
+        "update tb_backup set endtime=datetime('now', 'localtime'),filecopycount=" +
+        std::to_string(m_fileCopyCount) + ",datacopycount=" +
+        std::to_string(m_dataCopyCount) + " where id=" + std::to_string(m_backupId));
 }
 
 void ServiceRun::deleteByBackuprootid(int64_t rootid)
@@ -522,7 +525,8 @@ void ServiceRun::checkdata(bool withhash)
                     backupHistory.id = ret->getColumn("id").getInt();
                     backupHistory.md5 = ret->getColumn("md5").getString();
                     backupHistory.filesize = ret->getColumn("filesize").getInt64();
-                    backupHistory.backupfileid = ret->getColumn("backupfileid").getInt64();
+                    backupHistory.backupfileid =
+                        ret->getColumn("backupfileid").getInt64();
                     backupHistory.backuptargetrootid =
                         ret->getColumn("backuptargetrootid").getInt();
                     backupHistory.backuptargetpath =
@@ -698,8 +702,8 @@ bool ServiceRun::restoreFile(const std::string& filePath)
         while (ret->executeStep())
         {
             const auto targetPath = ret->getColumn("targetrootpath").getString();
-            const auto fullBackupPath = u8path_from(
-                targetPath + ret->getColumn("backuptargetpath").getString());
+            const auto fullBackupPath =
+                u8path_from(targetPath + ret->getColumn("backuptargetpath").getString());
             const auto modifyTime =
                 static_cast<time_t>(ret->getColumn("motifytime").getInt64());
 
@@ -716,9 +720,9 @@ bool ServiceRun::restoreFile(const std::string& filePath)
             if (n >= 0 && n < static_cast<int>(allPath.size()) &&
                 std::filesystem::exists(allPath.at(n)))
             {
-                std::filesystem::copy(
-                    allPath.at(n), path.replace_filename(originFileName),
-                    std::filesystem::copy_options::overwrite_existing);
+                std::filesystem::copy(allPath.at(n),
+                                      path.replace_filename(originFileName),
+                                      std::filesystem::copy_options::overwrite_existing);
                 logger.info("restore file success: " + filePath);
                 return true;
             }
