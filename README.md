@@ -15,7 +15,7 @@ https://www.bilibili.com/video/BV1Ls4y1c7Wd/
 
 这个目录包含将现有 Java 项目迁移到 C++ 的初始版本。目标采用 C++17 和 CMake 构建系统。
 
-快速开始（仅在 Windows）：
+快速开始：
 
 1. 下载 [release](https://github.com/CaiWenDa/timemachineplus_cpp/releases/tag/release) 版本
 2. 使用 add 命令添加备份源和目标目录
