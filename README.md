@@ -17,7 +17,7 @@ https://www.bilibili.com/video/BV1Ls4y1c7Wd/
 
 快速开始：
 
-1. 下载 [release](https://github.com/CaiWenDa/timemachineplus_cpp/releases/tag/release) 版本
+1. 下载 [release](https://github.com/CaiWenDa/timemachineplus_cpp/releases) 版本
 2. 使用 add 命令添加备份源和目标目录
 
 ```shell
