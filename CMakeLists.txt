@@ -6,6 +6,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
 add_compile_definitions(_UNICODE)
 
 include_directories(${PROJECT_SOURCE_DIR}/include)
+include_directories(thirdparty/OpenSSL)
 
 # Add SQLite3 C++ wrapper around sqlite3 library (and sqlite3 itself provided for ease of use)
 # Here you can set CMake variables to avoid building Example, as well as cpplint, cppcheck...
@@ -21,16 +22,29 @@ add_executable(timemachineplus
     src/util.cpp)
 
 # Find OpenSSL for MD5 hashing
-find_package(OpenSSL REQUIRED)
-if(OpenSSL_FOUND)
-    include_directories(${OPENSSL_INCLUDE_DIR})
-    target_link_libraries(timemachineplus PRIVATE ${OPENSSL_LIBRARIES} SQLiteCpp)
+# list(APPEND CMAKE_PREFIX_PATH "%userprofile%/.conda/envs/scratch/Library")
+# find_package(OpenSSL REQUIRED)
+# if(OpenSSL_FOUND)
+#     target_include_directories(timemachineplus PRIVATE ${OPENSSL_INCLUDE_DIR})
+#     if(LINUX)
+#         target_link_libraries(timemachineplus "libcrypto.a" SQLiteCpp)
+#     elseif(WIN32)
+#         target_link_libraries(timemachineplus "${PROJECT_SOURCE_DIR}/thirdparty/OpenSSL/libcrypto.lib" SQLiteCpp)
+#     endif()
+# endif()
+
+target_include_directories(timemachineplus PRIVATE ${OPENSSL_INCLUDE_DIR})
+if(LINUX)
+    target_link_libraries(timemachineplus "${PROJECT_SOURCE_DIR}/thirdparty/OpenSSL/lib/libcrypto.a" SQLiteCpp)
+elseif(WIN32)
+    target_link_libraries(timemachineplus "${PROJECT_SOURCE_DIR}/thirdparty/OpenSSL/lib/libcrypto.lib" SQLiteCpp)
 endif()
+
 
 # Link SQLiteCpp_example1 with SQLiteCpp
 # target_link_libraries(timemachineplus SQLiteCpp)
-if(LINUX)
-    set(CMAKE_BUILD_WITH_INSTALL_RPATH TRUE)
-    set_target_properties(timemachineplus PROPERTIES INSTALL_RPATH "$ORIGIN")
-endif()
+# if(LINUX)
+#     set(CMAKE_BUILD_WITH_INSTALL_RPATH TRUE)
+#     set_target_properties(timemachineplus PROPERTIES INSTALL_RPATH "$ORIGIN")
+# endif()
 install(TARGETS timemachineplus DESTINATION bin)
