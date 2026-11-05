@@ -105,13 +105,20 @@ inline int64_t getMilliTimeStamp()
         .count();
 }
 
-inline time_t getSysFileMilliTimeStamp(const std::filesystem::path& filePath)
+inline int64_t getSysFileMilliTimeStamp(const std::filesystem::path& filePath)
 {
+    // 跨时钟转换：先算文件时间点相对于 file_clock 当前时刻的偏移，
+    // 再将该 offset 映射到 system_clock，避免直接混合不同时钟类型运算。
+    auto fileLastWrite = std::filesystem::last_write_time(filePath);
+    auto fileNow = std::filesystem::file_time_type::clock::now();
+    auto sysNow = std::chrono::system_clock::now();
+
+    auto offset = fileLastWrite - fileNow;
+    auto sysTime =
+        sysNow + std::chrono::duration_cast<std::chrono::system_clock::duration>(offset);
+
     return std::chrono::duration_cast<std::chrono::milliseconds>(
-               (std::filesystem::last_write_time(filePath) -
-                std::filesystem::file_time_type::clock::now() +
-                std::chrono::system_clock::now())
-                   .time_since_epoch())
+               sysTime.time_since_epoch())
         .count();
 }
 

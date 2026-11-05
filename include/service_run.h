@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <vector>
 
+#include "config.h"
 #include "models.h"
 #include "sqlite_helper.h"
 #include "util.h"
@@ -10,12 +11,12 @@
 class ServiceRun
 {
    public:
-    ServiceRun() : m_sqliteHelper("timemachine.db") {}
+    ServiceRun() : m_sqliteHelper(timemachineplus::config::kDbName) {}
     void init();
     void loadBackupRoot();
     void deleteByBackuprootid(int64_t rootid);
     void XCopy();
-    // 检查备份是否损坏并移除损坏备份
+    // 妫�鏌ュ浠芥槸鍚︽崯鍧忓苟绉婚櫎鎹熷潖澶囦唤
     void checkdata(bool withhash);
     void listBackupPaths();
     bool addSourcePath(const std::string& source);
@@ -39,11 +40,12 @@ class ServiceRun
 
    private:
     SQLiteHelper m_sqliteHelper;
-    inline static Utils::Log logger;
+    inline static Utils::Log logger{timemachineplus::config::kLogFile};
     std::vector<timemachine::Backuproot> m_backupRootList;
     std::vector<timemachine::Backuptargetroot> m_backupTargetRootList;
     int64_t m_fileCopyCount = 0;
     int64_t m_dataCopyCount = 0;
     int m_backupId = 0;
-    inline static constexpr std::string_view targetBkDirName = "BACKUPDATABASE";
+    inline static constexpr std::string_view targetBkDirName =
+        timemachineplus::config::kBackupDirName;
 };
