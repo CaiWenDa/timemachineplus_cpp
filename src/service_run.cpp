@@ -29,6 +29,13 @@ void ServiceRun::init()
     if (!m_sqliteHelper.valid())
     {
         logger.error("SQLite init failed");
+        return;
+    }
+
+    // 执行 schema 初始化脚本（幂等，可重复执行）
+    if (!m_sqliteHelper.execScriptFile("timemachine.sql"))
+    {
+        logger.error("failed to init schema from timemachine.sql");
     }
 }
 
