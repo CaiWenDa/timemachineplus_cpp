@@ -429,32 +429,45 @@ void ServiceRun::deleteByBackuprootid(int64_t rootid)
 
 void ServiceRun::XCopy()
 {
-    try
+    auto* db = m_sqliteHelper.database();
+    if (!db)
     {
-        m_backupId = beginbackup();
-        if (m_backupId == -1)
-        {
-            return;
-        }
-    }
-    catch (const std::exception& e)
-    {
-        logger.error(e.what());
+        logger.error("db not open, abort backup");
         return;
     }
 
-    for (const auto& backuproot : m_backupRootList)
+    try
     {
-        try
+        // 整个备份在一个事务里：原子性 + 批量写性能
+        SQLite::Transaction transaction(*db);
+
+        m_backupId = beginbackup();
+        if (m_backupId == -1)
         {
-            XCopy(backuproot);
+            return;  // 事务析构时自动 rollback
         }
-        catch (const std::exception& e)
+
+        for (const auto& backuproot : m_backupRootList)
         {
-            logger.error(e.what());
+            try
+            {
+                XCopy(backuproot);
+            }
+            catch (const std::exception& e)
+            {
+                logger.error(e.what());
+            }
         }
+        finishbackup();
+
+        transaction.commit();
+        logger.info("backup committed, id=" + std::to_string(m_backupId));
     }
-    finishbackup();
+    catch (const std::exception& e)
+    {
+        logger.error("backup aborted: " + std::string(e.what()));
+        // 事务析构时自动 rollback
+    }
 }
 
 std::string ServiceRun::getTargetrootPath(int targetbkid)

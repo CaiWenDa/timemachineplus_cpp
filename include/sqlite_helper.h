@@ -26,6 +26,9 @@ public:
     // 关闭并释放数据库资源
     void close() noexcept;
 
+    // 暴露底层 Database（供 Transaction 等高级用法）
+    SQLite::Database* database() noexcept { return m_dataBase.get(); }
+
 private:
     std::string m_dbname;
     std::unique_ptr<SQLite::Database> m_dataBase;
