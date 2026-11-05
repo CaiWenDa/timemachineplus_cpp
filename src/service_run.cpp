@@ -33,9 +33,10 @@ void ServiceRun::init()
     }
 
     // 执行 schema 初始化脚本（幂等，可重复执行）
-    if (!m_sqliteHelper.execScriptFile("timemachine.sql"))
+    if (!m_sqliteHelper.execScriptFile(timemachineplus::config::kSchemaFile))
     {
-        logger.error("failed to init schema from timemachine.sql");
+        logger.error(std::string("failed to init schema from ") +
+                     timemachineplus::config::kSchemaFile);
     }
 }
 
