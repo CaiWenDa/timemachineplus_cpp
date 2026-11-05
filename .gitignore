@@ -372,6 +372,8 @@ boost/
 *.exe
 .clang-format
 CMakeSettings.json
+testdata/
+
 # timemachineplus runtime
 timemachine.db
 timemachine.db-*
