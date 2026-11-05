@@ -1,6 +1,8 @@
 #include "sqlite_helper.h"
 
+#include <fstream>
 #include <iostream>
+#include <sstream>
 
 SQLiteHelper::SQLiteHelper(const std::string& dbname)
     : m_dbname(dbname), m_dataBase(nullptr)
@@ -9,7 +11,7 @@ SQLiteHelper::SQLiteHelper(const std::string& dbname)
     {
         // 打开数据库，若不存在则创建
         m_dataBase = std::make_unique<SQLite::Database>(
-            m_dbname, SQLite::OPEN_READWRITE);
+            m_dbname, SQLite::OPEN_READWRITE | SQLite::OPEN_CREATE);
     }
     catch (const std::exception& e)
     {
@@ -31,12 +33,14 @@ bool SQLiteHelper::execSql(const std::string& sql)
 {
     if (!valid())
     {
+        std::cerr << "SQLiteHelper::execSql error: DB not open\n";
         return false;
     }
 
     try
     {
-        // SQLite::Database::exec 会抛出异常失败，捕获并返回 false
+        // SQLite::Database::exec 遇到错误会抛异常，这里吞掉异常返回 false，
+        // 让调用方的 `if (!execSql(...))` 检查真正生效。
         m_dataBase->exec(sql);
         return true;
     }
@@ -44,8 +48,22 @@ bool SQLiteHelper::execSql(const std::string& sql)
     {
         std::cerr << "SQLiteHelper::execSql error: " << e.what() << " SQL:["
                   << sql << "]\n";
-        throw;
+        return false;
     }
+}
+
+bool SQLiteHelper::execScriptFile(const std::string& path)
+{
+    std::ifstream file(path);
+    if (!file.is_open())
+    {
+        std::cerr << "SQLiteHelper::execScriptFile: cannot open file [" << path
+                  << "]\n";
+        return false;
+    }
+    std::stringstream ss;
+    ss << file.rdbuf();
+    return execSql(ss.str());
 }
 
 std::unique_ptr<SQLite::Statement> SQLiteHelper::prepareQuery(
