@@ -385,3 +385,8 @@ electron-ui/dist-electron/
 
 # QML UI MSVC build output
 build-qml/
+
+# 打包输出（packaging/package.ps1 产物）
+build-release/
+dist/
+dist-installer/

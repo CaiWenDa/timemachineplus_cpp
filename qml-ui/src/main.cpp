@@ -5,8 +5,10 @@
 #include <QFont>
 #include <QDir>
 #include <QFileInfo>
+#include <QStandardPaths>
 
 #include "BackendBridge.h"
+#include "config.h"
 
 int main(int argc, char* argv[])
 {
@@ -20,7 +22,8 @@ int main(int argc, char* argv[])
         Qt::HighDpiScaleFactorRoundingPolicy::PassThrough);
 
     QGuiApplication app(argc, argv);
-    app.setApplicationName("Time Machine+");
+    app.setApplicationName("TimeMachinePlus");     // 用于数据/缓存目录命名
+    app.setApplicationDisplayName("Time Machine+"); // 用于窗口/UI 显示
     app.setOrganizationName("timemachineplus");
 
     // 全局默认字体栈：与 Theme.fontUi 保持一致，覆盖未显式设置 font.family 的
@@ -36,21 +39,64 @@ int main(int argc, char* argv[])
         QGuiApplication::setFont(appFont);
     }
 
-    // 定位项目根目录（含 timemachine.sql 的目录），设置 DB 路径环境变量
-    // 查找顺序：exe 目录向上 5 层 → 当前工作目录
-    QDir dir(QCoreApplication::applicationDirPath());
-    for (int i = 0; i < 5; ++i)
+    // ---- 运行期路径策略（区分安装态与开发态） ----
+    // 安装态：exe 同目录存在 timemachine.sql（安装包随包分发 schema）
+    // 开发态：build 目录内，需向上最多 5 层查找项目根
+    // 数据文件（timemachine.db / log.log）必须落在可写目录：
+    //   安装态 → %LOCALAPPDATA%\TimeMachinePlus（装到 Program Files 时不可写）
+    //   开发态 → 项目根（沿用既有数据库，避免历史备份数据"消失"）
+    QDir exeDir(QCoreApplication::applicationDirPath());
+    QDir probe = exeDir;
+    QString schemaPath;
+    bool installedLayout = false;
+
+    if (QFileInfo::exists(probe.filePath(timemachineplus::config::kSchemaFile)))
     {
-        if (QFileInfo::exists(dir.filePath("timemachine.sql")))
-            break;
-        if (!dir.cdUp()) break;
+        schemaPath = probe.filePath(timemachineplus::config::kSchemaFile);
+        installedLayout = true;
     }
-    if (QFileInfo::exists(dir.filePath("timemachine.sql")))
+    else
     {
-        qputenv("TIMEMACHINE_DB", QFile::encodeName(dir.filePath("timemachine.db")));
-        qputenv("TIMEMACHINE_SCHEMA", QFile::encodeName(dir.filePath("timemachine.sql")));
-        QDir::setCurrent(dir.absolutePath());
+        for (int i = 0; i < 5; ++i)
+        {
+            if (!probe.cdUp()) break;
+            if (QFileInfo::exists(probe.filePath(timemachineplus::config::kSchemaFile)))
+            {
+                schemaPath = probe.filePath(timemachineplus::config::kSchemaFile);
+                break;
+            }
+        }
     }
+
+    QString dataDir;
+    if (installedLayout)
+    {
+        const QString base =
+            QStandardPaths::writableLocation(QStandardPaths::GenericDataLocation);
+        // 目录名避开 Qt 的 CacheLocation（%LOCALAPPDATA%\timemachineplus\TimeMachinePlus，
+        // Windows 不区分大小写，与 "TimeMachinePlus" 同名会导致 QML 缓存嵌进数据目录）
+        dataDir = QDir(base).filePath(QStringLiteral("TimeMachinePlusData"));
+        if (!QDir().mkpath(dataDir) && !QDir(dataDir).exists())
+            dataDir = exeDir.absolutePath();  // 只读环境兜底
+    }
+    else if (!schemaPath.isEmpty())
+    {
+        dataDir = QFileInfo(schemaPath).absolutePath();
+    }
+    else
+    {
+        dataDir = exeDir.absolutePath();
+    }
+
+    // 工作目录固定在 exe 同目录（日志等运行期文件落在这里），
+    // 数据库已通过 TIMEMACHINE_DB 指向绝对路径，无需依赖 CWD。
+    // 不与数据目录共用，避免 Qt 运行期文件混入用户备份数据库目录。
+    QDir::setCurrent(exeDir.absolutePath());
+    qputenv("TIMEMACHINE_DB",
+            QFile::encodeName(QDir(dataDir).filePath(
+                QString::fromUtf8(timemachineplus::config::kDbName))));
+    if (!schemaPath.isEmpty())
+        qputenv("TIMEMACHINE_SCHEMA", QFile::encodeName(schemaPath));
 
     BackendBridge backend;
 

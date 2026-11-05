@@ -42,3 +42,25 @@ elseif(LINUX)
     target_link_libraries(timemachineplus_qml PRIVATE
         "${TMP_ROOT}/thirdparty/OpenSSL/lib/libcrypto.a")
 endif()
+
+# ---- 安装规则（供 packaging/package.ps1 或 CPack 使用）----
+# schema 必须随包分发：main.cpp 以"exe 同目录存在 timemachine.sql"判定安装态
+install(TARGETS timemachineplus_qml RUNTIME DESTINATION . COMPONENT qmlui)
+install(FILES "${TMP_ROOT}/timemachine.sql" DESTINATION . COMPONENT qmlui)
+
+# 可选：构建后自动部署 Qt 运行时依赖（打包时开启，日常 Debug 构建保持关闭）
+option(TIMEMACHINEPLUS_QML_AUTODEPLOY "构建后自动执行 windeployqt 部署依赖" OFF)
+if(TIMEMACHINEPLUS_QML_AUTODEPLOY AND WIN32)
+    get_target_property(_qmake_loc Qt5::qmake IMPORTED_LOCATION)
+    get_filename_component(_qt_bin_dir "${_qmake_loc}" DIRECTORY)
+    find_program(WINDEPLOYQT_EXE windeployqt HINTS "${_qt_bin_dir}")
+    if(WINDEPLOYQT_EXE)
+        add_custom_command(TARGET timemachineplus_qml POST_BUILD
+            COMMAND "${WINDEPLOYQT_EXE}" --compiler-runtime
+                    --qmldir "${CMAKE_CURRENT_SOURCE_DIR}/qml"
+                    "$<TARGET_FILE:timemachineplus_qml>"
+            COMMENT "windeployqt: 部署 Qt 运行依赖到输出目录")
+    else()
+        message(WARNING "未找到 windeployqt，跳过自动部署")
+    endif()
+endif()
