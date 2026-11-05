@@ -3,7 +3,9 @@
 #include <cstring>
 #include <iostream>
 #include <string_view>
+#include <thread>
 
+#include "api_server.h"
 #include "service_run.h"
 #include "util.h"
 
@@ -79,6 +81,16 @@ int main(int argc, char* argv[])
                 }
                 logger.error("invalid args");
                 return 1;
+            }
+            else if (cmd == "ui")
+            {
+                // 启动 HTTP API server（方案 B 后端模式）
+                int port = 8765;
+                if (argc >= 3)
+                {
+                    port = std::atoi(argv[2]);
+                }
+                return runApiServer(serviceRun, port);
             }
             else
             {

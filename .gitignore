@@ -372,3 +372,11 @@ boost/
 *.exe
 .clang-format
 CMakeSettings.json
+# timemachineplus runtime
+timemachine.db
+timemachine.db-*
+log.log
+
+# Electron / Vite build output
+electron-ui/dist/
+electron-ui/dist-electron/

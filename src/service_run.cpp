@@ -43,6 +43,8 @@ void ServiceRun::init()
 void ServiceRun::loadBackupRoot()
 {
     logger.info("loadBackupRoot");
+    m_backupRootList.clear();
+    m_backupTargetRootList.clear();
     if (auto res = m_sqliteHelper.prepareQuery("select * from tb_backuproot"); res)
     {
         while (res->executeStep())

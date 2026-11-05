@@ -25,6 +25,12 @@ class ServiceRun
     bool removeTargetPath(const std::string& target);
     bool restoreFile(const std::string& filePath);
 
+    // --- API 层需要的公开访问器 ---
+    SQLiteHelper& sqliteHelper() { return m_sqliteHelper; }
+    std::string getTargetrootPath(int targetbkid);  // 供 restore / api_server 复用
+    const std::vector<timemachine::Backuproot>& backupRoots() const { return m_backupRootList; }
+    const std::vector<timemachine::Backuptargetroot>& backupTargets() const { return m_backupTargetRootList; }
+
    private:
     static void loadAllFiles(const std::string& pathName,
                              std::vector<std::string>& fileList);
@@ -34,7 +40,6 @@ class ServiceRun
     void XCopy(const timemachine::Backuproot& backuproot);
     int beginbackup();
     void finishbackup();
-    std::string getTargetrootPath(int targetbkid);
     void removeWastedData(int64_t backupfilehistoryid,
                           const std::string& backupfilefullpath);
 
