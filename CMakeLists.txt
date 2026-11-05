@@ -58,3 +58,16 @@ endif()
 #     set_target_properties(timemachineplus PROPERTIES INSTALL_RPATH "$ORIGIN")
 # endif()
 install(TARGETS timemachineplus DESTINATION bin)
+
+# ---- QML UI（可选）：本机存在 Qt5.15+ 时构建 ----
+# 关闭方式：cmake -DTIMEMACHINEPLUS_BUILD_QML_UI=OFF
+option(TIMEMACHINEPLUS_BUILD_QML_UI "Build the QML (Qt Quick) desktop UI" ON)
+if(TIMEMACHINEPLUS_BUILD_QML_UI)
+    find_package(Qt5 5.15 QUIET COMPONENTS Quick Qml Gui QuickControls2 Concurrent)
+    if(Qt5_FOUND)
+        message(STATUS "Qt5 found (${Qt5_VERSION}), QML UI will be built")
+        add_subdirectory(qml-ui)
+    else()
+        message(STATUS "Qt5 not found, skipping QML UI (CLI/stdio backend still builds)")
+    endif()
+endif()

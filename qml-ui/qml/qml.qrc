@@ -1,0 +1,15 @@
+<RCC>
+    <qresource prefix="/qml">
+        <file>Main.qml</file>
+        <file>Theme.qml</file>
+        <file>qmldir</file>
+        <file>components/AppButton.qml</file>
+        <file>components/AppSpinner.qml</file>
+        <file>components/ConfirmDialog.qml</file>
+        <file>components/SettingsSection.qml</file>
+        <file>components/TimelinePane.qml</file>
+        <file>components/BackupFileListPane.qml</file>
+        <file>components/SearchResultsPane.qml</file>
+        <file>components/SettingsDialog.qml</file>
+    </qresource>
+</RCC>
