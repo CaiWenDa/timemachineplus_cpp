@@ -222,8 +222,8 @@ async function waitForBackend(maxAttempts = 30): Promise<boolean> {
 
 function createWindow() {
   mainWindow = new BrowserWindow({
-    width: 1280,
-    height: 820,
+    width: 960,
+    height: 600,
     minWidth: 960,
     minHeight: 600,
     backgroundColor: '#1a1a2e',
