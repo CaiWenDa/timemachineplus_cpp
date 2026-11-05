@@ -33,10 +33,12 @@ void ServiceRun::init()
     }
 
     // 执行 schema 初始化脚本（幂等，可重复执行）
-    if (!m_sqliteHelper.execScriptFile(timemachineplus::config::kSchemaFile))
+    // 支持通过环境变量 TIMEMACHINE_SCHEMA 显式指定绝对路径
+    const char* schemaEnv = std::getenv("TIMEMACHINE_SCHEMA");
+    std::string schemaPath = schemaEnv && schemaEnv[0] ? schemaEnv : timemachineplus::config::kSchemaFile;
+    if (!m_sqliteHelper.execScriptFile(schemaPath))
     {
-        logger.error(std::string("failed to init schema from ") +
-                     timemachineplus::config::kSchemaFile);
+        logger.error(std::string("failed to init schema from ") + schemaPath);
     }
 }
 
@@ -76,7 +78,11 @@ void ServiceRun::loadBackupRoot()
             auto u8path = u8path_from(backuptargetroot.targetrootpath);
             if (!std::filesystem::exists(u8path))
             {
-                std::filesystem::create_directory(u8path);
+                try {
+                    std::filesystem::create_directories(u8path);
+                } catch (const std::filesystem::filesystem_error& err) {
+                    logger.error(std::string("create_directory failed: ") + err.what());
+                }
             }
             if (!std::filesystem::exists(u8path))
             {

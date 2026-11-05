@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdlib>
 #include <cstdint>
 #include <vector>
 
@@ -11,7 +12,16 @@
 class ServiceRun
 {
    public:
-    ServiceRun() : m_sqliteHelper(timemachineplus::config::kDbName) {}
+    ServiceRun()
+        : m_sqliteHelper(
+              // 支持 TIMEMACHINE_DB 环境变量覆盖 DB 路径（Electron/LAN 分布式场景需要）
+              []() {
+                  if (const char* env = std::getenv("TIMEMACHINE_DB")) {
+                      return std::string(env[0] ? env : timemachineplus::config::kDbName);
+                  }
+                  return std::string(timemachineplus::config::kDbName);
+              }())
+    {}
     void init();
     void loadBackupRoot();
     void deleteByBackuprootid(int64_t rootid);

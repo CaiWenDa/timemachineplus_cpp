@@ -103,7 +103,11 @@ int main(int argc, char* argv[])
     }
     catch (const std::exception& e)
     {
-        logger.error(e.what());
+        logger.error(std::string("EXCEPTION: ") + e.what());
+    }
+    catch (...)
+    {
+        logger.error("EXCEPTION: unknown");
     }
 
 #if _DEBUG
