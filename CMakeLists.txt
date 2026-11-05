@@ -25,7 +25,8 @@ add_executable(timemachineplus
     src/sqlite_helper.cpp
     src/service_run.cpp
     src/util.cpp
-    src/api_server.cpp)
+    src/api_server.cpp
+    src/stdio_server.cpp)
 
 # Find OpenSSL for MD5 hashing
 # list(APPEND CMAKE_PREFIX_PATH "%userprofile%/.conda/envs/scratch/Library")

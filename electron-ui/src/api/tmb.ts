@@ -1,23 +1,20 @@
-// C++ 后端 API 封装
-const BASE = 'http://127.0.0.1:8765'
+// C++ 后端 API 封装 —— 通过 Electron preload 暴露的 window.tmb.invoke 走 stdio JSON 行协议
+// 不再需要 HTTP fetch，没有端口、没有跨域、没有 health check 轮询
 
-async function fetchJson<T>(path: string, opts?: RequestInit): Promise<T> {
-  const res = await fetch(BASE + path, {
-    headers: { 'Content-Type': 'application/json', ...opts?.headers },
-    ...opts,
-  })
-  if (!res.ok) {
-    // 优先使用后端返回的可读错误信息
-    let msg = `${res.status} ${res.statusText}`
-    try {
-      const j = await res.json()
-      if (j?.error) msg = j.error
-    } catch { /* 无 JSON body 时用状态码 */ }
-    throw new Error(msg)
+// 声明 window.tmb 的类型（preload.ts 注入）
+declare global {
+  interface Window {
+    tmb: {
+      invoke: (method: string, params?: any) => Promise<any>
+    }
   }
-  // 204 No Content（如删除成功）没有响应体
-  if (res.status === 204) return undefined as T
-  return res.json()
+}
+
+async function invoke<T>(method: string, params?: any): Promise<T> {
+  if (!window.tmb?.invoke) {
+    throw new Error('window.tmb 未就绪（Electron preload 未加载？）')
+  }
+  return window.tmb.invoke(method, params)
 }
 
 export interface BackupTime {
@@ -61,36 +58,38 @@ export interface SearchResult {
 }
 
 export const tmb = {
-  health: () => fetchJson<{ status: string }>('/api/health'),
-  status: () => fetchJson<{ sources: Source[]; targets: Target[] }>('/api/status'),
-  backups: () => fetchJson<{ backups: BackupTime[] }>('/api/backups'),
-  sources: () => fetchJson<{ sources: Source[] }>('/api/sources'),
-  addSource: (path: string) =>
-    fetchJson('/api/sources', { method: 'POST', body: JSON.stringify({ path }) }),
-  deleteSource: (id: number) =>
-    fetchJson(`/api/sources/${id}`, { method: 'DELETE' }),
-  targets: () => fetchJson<{ targets: Target[] }>('/api/targets'),
-  addTarget: (path: string) =>
-    fetchJson('/api/targets', { method: 'POST', body: JSON.stringify({ path }) }),
-  deleteTarget: (id: number) =>
-    fetchJson(`/api/targets/${id}`, { method: 'DELETE' }),
-  triggerBackup: () =>
-    fetchJson('/api/backup', { method: 'POST' }),
+  health: () => invoke<{ status: string }>('health'),
+
+  status: () => invoke<{ sources: Source[]; targets: Target[] }>('status'),
+
+  backups: () => invoke<{ backups: BackupTime[] }>('backups'),
+
+  // sources / targets 从 status 拆包，后端 status 一次性返回两者
+  sources: async () => {
+    const r = await invoke<{ sources: Source[] }>('status')
+    return { sources: r.sources }
+  },
+  addSource: (path: string) => invoke<void>('add_source', { path }),
+  deleteSource: (id: number) => invoke<void>('delete_source', { id }),
+
+  targets: async () => {
+    const r = await invoke<{ targets: Target[] }>('status')
+    return { targets: r.targets }
+  },
+  addTarget: (path: string) => invoke<void>('add_target', { path }),
+  deleteTarget: (id: number) => invoke<void>('delete_target', { id }),
+
+  triggerBackup: () => invoke<{ status: string }>('trigger_backup'),
+
   backupFiles: (backupId: number) =>
-    fetchJson<{ backupId: number; files: BackupFile[] }>(
-      `/api/backups/${backupId}/files`
-    ),
+    invoke<{ backupId: number; files: BackupFile[] }>('backup_files', { backupId }),
+
   search: (name: string) =>
-    fetchJson<{ keyword: string; results: SearchResult[] }>(
-      `/api/search?name=${encodeURIComponent(name)}`
-    ),
+    invoke<{ keyword: string; results: SearchResult[] }>('search', { name }),
+
   fileHistory: (path: string) =>
-    fetchJson<{ filepath: string; fileId: number; history: FileHistoryItem[] }>(
-      `/api/files?path=${encodeURIComponent(path)}`
-    ),
+    invoke<{ filepath: string; fileId: number; history: FileHistoryItem[] }>('file_history', { path }),
+
   restore: (historyId: number, destPath: string) =>
-    fetchJson('/api/restore', {
-      method: 'POST',
-      body: JSON.stringify({ historyId, destPath }),
-    }),
+    invoke<{ ok: boolean; restoredTo: string }>('restore', { historyId, destPath }),
 }

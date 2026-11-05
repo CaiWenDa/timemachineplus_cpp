@@ -1,5 +1,4 @@
-// 独立的 Electron 主进程打包配置 —— 强制 CJS 格式
-// Electron 主进程在 package.json 无 type:module 时需要 CJS 入口
+// Electron 主进程 + preload 打包配置 —— 强制 CJS 格式
 import { defineConfig } from 'vite'
 import { resolve } from 'path'
 
@@ -8,14 +7,14 @@ export default defineConfig({
     outDir: 'dist-electron',
     emptyOutDir: true,
     target: 'node18',
-    lib: {
-      entry: resolve(__dirname, 'electron/main.ts'),
-      formats: ['cjs'],
-      fileName: () => 'main.cjs',
-    },
     rollupOptions: {
+      input: {
+        main: resolve(__dirname, 'electron/main.ts'),
+        preload: resolve(__dirname, 'electron/preload.ts'),
+      },
       output: {
         format: 'cjs',
+        entryFileNames: '[name].cjs',
       },
       external: [
         'electron',

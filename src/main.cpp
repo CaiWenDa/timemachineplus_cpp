@@ -7,11 +7,13 @@
 
 #include "api_server.h"
 #include "service_run.h"
+#include "stdio_server.h"
 #include "util.h"
 
 int main(int argc, char* argv[])
 {
-    std::cout << "timemachineplus C++ version (C++17)" << std::endl;
+    // banner 输出到 stderr，避免 stdout 管道化后污染协议/HTTP 响应
+    std::cerr << "timemachineplus C++ version (C++17)" << std::endl;
 
     Utils::Log logger;
     try
@@ -84,13 +86,18 @@ int main(int argc, char* argv[])
             }
             else if (cmd == "ui")
             {
-                // 启动 HTTP API server（方案 B 后端模式）
+                // 启动 HTTP API server（方案 A：HTTP 后端模式）
                 int port = 8765;
                 if (argc >= 3)
                 {
                     port = std::atoi(argv[2]);
                 }
                 return runApiServer(serviceRun, port);
+            }
+            else if (cmd == "--stdio")
+            {
+                // 启动 stdin/stdout JSON 行协议服务（方案 B）
+                return runStdioServer(serviceRun);
             }
             else
             {
