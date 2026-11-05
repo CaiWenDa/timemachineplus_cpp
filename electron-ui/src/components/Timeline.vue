@@ -1,10 +1,22 @@
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, watch, nextTick } from 'vue'
 import { tmb, type BackupTime } from '../api/tmb'
+
+// selectedId 由父组件控制（支持搜索结果跨版本定位时外部传入）
+const props = defineProps<{ selectedId?: number | null }>()
+const emit = defineEmits<{ (e: 'select', b: BackupTime): void }>()
 
 const backups = ref<BackupTime[]>([])
 const loading = ref(true)
-const selectedBackupId = ref<number | null>(null)
+const selectedBackupId = ref<number | null>(props.selectedId ?? null)
+
+// 外部（搜索结果定位）改变选中节点时，同步高亮并滚动到可见位置
+watch(() => props.selectedId, async (v) => {
+  if (v == null) return
+  selectedBackupId.value = v
+  await nextTick()
+  document.getElementById(`tl-dot-${v}`)?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
+})
 
 async function load() {
   loading.value = true
@@ -16,6 +28,11 @@ async function load() {
   } finally {
     loading.value = false
   }
+}
+
+function select(b: BackupTime) {
+  selectedBackupId.value = b.id
+  emit('select', b)
 }
 
 onMounted(load)
@@ -70,9 +87,10 @@ function humanSize(bytes: number | null) {
           <div
             v-for="b in list"
             :key="b.id"
+            :id="`tl-dot-${b.id}`"
             class="tl-dot"
             :class="{ active: selectedBackupId === b.id, pending: !b.endtime }"
-            @click="selectedBackupId = b.id; $emit('select', b)"
+            @click="select(b)"
           >
             <span class="tl-time">{{ (b.begintime || '').slice(11, 16) }}</span>
             <span class="tl-files">{{ b.filecopycount ?? 0 }} 个文件</span>

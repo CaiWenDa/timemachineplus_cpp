@@ -6,7 +6,17 @@ async function fetchJson<T>(path: string, opts?: RequestInit): Promise<T> {
     headers: { 'Content-Type': 'application/json', ...opts?.headers },
     ...opts,
   })
-  if (!res.ok) throw new Error(`${res.status} ${res.statusText}`)
+  if (!res.ok) {
+    // 优先使用后端返回的可读错误信息
+    let msg = `${res.status} ${res.statusText}`
+    try {
+      const j = await res.json()
+      if (j?.error) msg = j.error
+    } catch { /* 无 JSON body 时用状态码 */ }
+    throw new Error(msg)
+  }
+  // 204 No Content（如删除成功）没有响应体
+  if (res.status === 204) return undefined as T
   return res.json()
 }
 
@@ -31,6 +41,25 @@ export interface FileHistoryItem {
   backupFileExists: boolean
 }
 
+// 某个备份版本（时间点）下的文件条目
+export interface BackupFile {
+  historyId: number
+  filepath: string
+  filesize: number
+  motifytime: number
+  md5: string
+}
+
+// 跨版本搜索结果条目（每条标注所属备份版本）
+export interface SearchResult {
+  historyId: number
+  filepath: string
+  backupId: number
+  backupBeginTime: string | null
+  filesize: number
+  motifytime: number
+}
+
 export const tmb = {
   health: () => fetchJson<{ status: string }>('/api/health'),
   status: () => fetchJson<{ sources: Source[]; targets: Target[] }>('/api/status'),
@@ -43,8 +72,18 @@ export const tmb = {
   targets: () => fetchJson<{ targets: Target[] }>('/api/targets'),
   addTarget: (path: string) =>
     fetchJson('/api/targets', { method: 'POST', body: JSON.stringify({ path }) }),
+  deleteTarget: (id: number) =>
+    fetchJson(`/api/targets/${id}`, { method: 'DELETE' }),
   triggerBackup: () =>
     fetchJson('/api/backup', { method: 'POST' }),
+  backupFiles: (backupId: number) =>
+    fetchJson<{ backupId: number; files: BackupFile[] }>(
+      `/api/backups/${backupId}/files`
+    ),
+  search: (name: string) =>
+    fetchJson<{ keyword: string; results: SearchResult[] }>(
+      `/api/search?name=${encodeURIComponent(name)}`
+    ),
   fileHistory: (path: string) =>
     fetchJson<{ filepath: string; fileId: number; history: FileHistoryItem[] }>(
       `/api/files?path=${encodeURIComponent(path)}`

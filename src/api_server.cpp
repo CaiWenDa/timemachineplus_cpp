@@ -7,6 +7,8 @@
 
 #include <filesystem>
 #include <iostream>
+#include <cctype>
+#include <mutex>
 
 using json = nlohmann::json;
 
@@ -61,6 +63,22 @@ void ok(httplib::Response& res, const json& body)
 void noContent(httplib::Response& res)
 {
     res.status = 204;
+}
+
+// ==================== 请求串行化 ====================
+// cpp-httplib 在线程池上并发处理请求，而 ServiceRun 的 loadBackupRoot 会
+// clear + 重建内存 vector 缓存，并发调用会踩内存导致进程崩溃。
+// 本地桌面应用场景请求量小，直接用一把互斥锁串行化所有 API 请求。
+std::mutex g_apiMutex;
+
+template <typename F>
+auto locked(F&& f)
+{
+    return [fn = std::forward<F>(f)](const httplib::Request& req,
+                                     httplib::Response& res) {
+        std::lock_guard<std::mutex> lk(g_apiMutex);
+        fn(req, res);
+    };
 }
 
 // ==================== Handler 集合 ====================
@@ -118,7 +136,9 @@ void handlePostBackup(httplib::Response& res, ServiceRun& svc)
         error(res, 400, "no source paths configured");
         return;
     }
+    // 备份线程同样持锁，避免与 API 请求并发访问 ServiceRun 缓存/DB
     std::thread([&svc]() {
+        std::lock_guard<std::mutex> lk(g_apiMutex);
         try { svc.XCopy(); }
         catch (const std::exception& e)
         {
@@ -159,6 +179,12 @@ void handlePostSources(const httplib::Request& req, httplib::Response& res,
             return;
         }
         const std::string path = body["path"].get<std::string>();
+        // 明确的前置校验：目录必须真实存在，否则给出可读错误而非裸 500
+        if (!std::filesystem::exists(std::filesystem::u8path(path)))
+        {
+            error(res, 400, "path does not exist: " + path);
+            return;
+        }
         if (svc.addSourcePath(path)) { ok(res); }
         else { error(res, 500, "addSourcePath failed"); }
     }
@@ -219,10 +245,46 @@ void handlePostTargets(const httplib::Request& req, httplib::Response& res,
     {
         auto body = json::parse(req.body);
         if (!body.contains("path")) { error(res, 400, "missing 'path'"); return; }
-        if (svc.addTargetPath(body["path"].get<std::string>())) { ok(res); }
+        const std::string path = body["path"].get<std::string>();
+        if (!std::filesystem::exists(std::filesystem::u8path(path)))
+        {
+            error(res, 400, "path does not exist: " + path);
+            return;
+        }
+        if (svc.addTargetPath(path)) { ok(res); }
         else { error(res, 500, "addTargetPath failed"); }
     }
     catch (const std::exception& e) { error(res, 400, e.what()); }
+}
+
+void handleDeleteTarget(const httplib::Request& req, httplib::Response& res,
+                        ServiceRun& svc)
+{
+    // 手动解析 /api/targets/NNN 里的 id
+    const auto pos = req.path.find_last_of('/');
+    if (pos != std::string::npos)
+    {
+        std::string idStr = req.path.substr(pos + 1);
+        int id = 0;
+        try { id = std::stoi(idStr); }
+        catch (...) { error(res, 400, "invalid id"); return; }
+
+        if (auto stmt = svc.sqliteHelper().prepareQuery(
+                "select targetrootpath from tb_backuptargetroot where id=:id"))
+        {
+            stmt->bind(":id", id);
+            if (stmt->executeStep())
+            {
+                if (svc.removeTargetPath(
+                        stmt->getColumn("targetrootpath").getString()))
+                {
+                    noContent(res);
+                    return;
+                }
+            }
+        }
+    }
+    error(res, 404, "target not found");
 }
 
 // 归一化路径：把所有 / 和 \ 都统一成 \，便于跨平台 DB 路径比较
@@ -363,8 +425,98 @@ void handleRestore(const httplib::Request& req, httplib::Response& res,
     catch (const std::exception& e) { error(res, 500, e.what()); }
 }
 
-}  // namespace
+// 某个备份版本（时间点）包含的全部文件
+// 快照语义：增量备份每次只记录变化文件，但 UI 需要展示该时间点
+// "所有源备份目录的完整文件列表" —— 即每个文件在该时间点可见的最新版本
+// （backupid <= 当前版本 的最近一条历史记录）。
+void handleBackupFiles(const httplib::Request& req, httplib::Response& res,
+                       ServiceRun& svc)
+{
+    int backupId = 0;
+    try { backupId = std::stoi(req.matches[1]); }
+    catch (...) { error(res, 400, "invalid backup id"); return; }
 
+    json arr = json::array();
+    if (auto stmt = svc.sqliteHelper().prepareQuery(
+            "select f.filepath, h.id as historyId, h.filesize,"
+            " h.motifytime, h.md5"
+            " from tb_backfiles f"
+            " join tb_backfilehistory h on h.backupfileid = f.id"
+            " and h.id = (select max(h2.id) from tb_backfilehistory h2"
+            "             where h2.backupfileid = f.id"
+            "             and h2.backupid <= :bid)"
+            " order by f.filepath"))
+    {
+        stmt->bind(":bid", backupId);
+        while (stmt->executeStep())
+        {
+            json row;
+            row["historyId"] = stmt->getColumn("historyId").getInt64();
+            row["filepath"] = stmt->getColumn("filepath").getText();
+            row["filesize"] = stmt->getColumn("filesize").getInt64();
+            row["motifytime"] = stmt->getColumn("motifytime").getInt64();
+            row["md5"] = stmt->getColumn("md5").getText();
+            arr.push_back(row);
+        }
+    }
+    json body;
+    body["backupId"] = backupId;
+    body["files"] = arr;
+    ok(res, body);
+}
+
+// 跨所有备份版本按文件名关键词搜索
+void handleSearch(const httplib::Request& req, httplib::Response& res,
+                  ServiceRun& svc)
+{
+    const std::string kw = req.get_param_value("name");
+    if (kw.empty()) { error(res, 400, "missing 'name' query param"); return; }
+
+    auto lower = [](std::string s) {
+        for (char& c : s) c = (char)std::tolower((unsigned char)c);
+        return s;
+    };
+    const std::string kwLower = lower(kw);
+    // 先 SQL LIKE 粗筛（归一化分隔符），再在 C++ 里按"文件名部分"精确过滤，
+    // 避免关键词只匹配到目录名的误报。
+    const std::string like = "%" + normalizePathSlashes(kw) + "%";
+
+    json arr = json::array();
+    if (auto stmt = svc.sqliteHelper().prepareQuery(
+            "select h.id as historyId, f.filepath, h.backupid, b.begintime,"
+            " h.filesize, h.motifytime"
+            " from tb_backfilehistory h"
+            " join tb_backfiles f on h.backupfileid = f.id"
+            " left join tb_backup b on h.backupid = b.id"
+            " where replace(f.filepath,'/','\\') like :kw"
+            " order by h.id desc"))
+    {
+        stmt->bind(":kw", like);
+        while (stmt->executeStep())
+        {
+            std::string filepath = stmt->getColumn("filepath").getText();
+            const auto pos = filepath.find_last_of("/\\");
+            const std::string basename =
+                pos == std::string::npos ? filepath : filepath.substr(pos + 1);
+            if (lower(basename).find(kwLower) == std::string::npos) continue;
+
+            json row;
+            row["historyId"] = stmt->getColumn("historyId").getInt64();
+            row["filepath"] = filepath;
+            row["backupId"] = stmt->getColumn("backupid").getInt();
+            row["backupBeginTime"] = stmt->getColumn("begintime").getText();
+            row["filesize"] = stmt->getColumn("filesize").getInt64();
+            row["motifytime"] = stmt->getColumn("motifytime").getInt64();
+            arr.push_back(row);
+        }
+    }
+    json body;
+    body["keyword"] = kw;
+    body["results"] = arr;
+    ok(res, body);
+}
+
+}  // namespace
 int runApiServer(ServiceRun& serviceRun, int port)
 {
     httplib::Server svr;
@@ -386,46 +538,58 @@ int runApiServer(ServiceRun& serviceRun, int port)
         json j; j["status"] = "ok"; ok(res, j);
     });
 
-    svr.Get("/api/status", [&](const httplib::Request&, httplib::Response& res) {
+    svr.Get("/api/status", locked([&](const httplib::Request&, httplib::Response& res) {
         handleStatus(res, serviceRun);
-    });
+    }));
 
-    svr.Get("/api/backups", [&](const httplib::Request&, httplib::Response& res) {
+    svr.Get("/api/backups", locked([&](const httplib::Request&, httplib::Response& res) {
         handleBackups(res, serviceRun);
-    });
-    svr.Post("/api/backup", [&](const httplib::Request&, httplib::Response& res) {
-        handlePostBackup(res, serviceRun);
-    });
-
-    svr.Get("/api/sources", [&](const httplib::Request&, httplib::Response& res) {
-        handleSources(res, serviceRun);
-    });
-    svr.Post("/api/sources", [&](const httplib::Request& req,
-                                  httplib::Response& res) {
-        handlePostSources(req, res, serviceRun);
-    });
-    svr.Delete("/api/sources/.*", [&](const httplib::Request& req,
+    }));
+    svr.Get(R"(/api/backups/(\d+)/files)",
+            locked([&](const httplib::Request& req, httplib::Response& res) {
+        handleBackupFiles(req, res, serviceRun);
+    }));
+    svr.Get("/api/search", locked([&](const httplib::Request& req,
                                        httplib::Response& res) {
+        handleSearch(req, res, serviceRun);
+    }));
+    svr.Post("/api/backup", locked([&](const httplib::Request&, httplib::Response& res) {
+        handlePostBackup(res, serviceRun);
+    }));
+
+    svr.Get("/api/sources", locked([&](const httplib::Request&, httplib::Response& res) {
+        handleSources(res, serviceRun);
+    }));
+    svr.Post("/api/sources", locked([&](const httplib::Request& req,
+                                         httplib::Response& res) {
+        handlePostSources(req, res, serviceRun);
+    }));
+    svr.Delete("/api/sources/.*", locked([&](const httplib::Request& req,
+                                              httplib::Response& res) {
         handleDeleteSource(req, res, serviceRun);
-    });
+    }));
 
-    svr.Get("/api/targets", [&](const httplib::Request&, httplib::Response& res) {
+    svr.Get("/api/targets", locked([&](const httplib::Request&, httplib::Response& res) {
         handleTargets(res, serviceRun);
-    });
-    svr.Post("/api/targets", [&](const httplib::Request& req,
-                                  httplib::Response& res) {
+    }));
+    svr.Post("/api/targets", locked([&](const httplib::Request& req,
+                                         httplib::Response& res) {
         handlePostTargets(req, res, serviceRun);
-    });
+    }));
+    svr.Delete("/api/targets/.*", locked([&](const httplib::Request& req,
+                                              httplib::Response& res) {
+        handleDeleteTarget(req, res, serviceRun);
+    }));
 
-    svr.Get("/api/files", [&](const httplib::Request& req,
-                               httplib::Response& res) {
+    svr.Get("/api/files", locked([&](const httplib::Request& req,
+                                      httplib::Response& res) {
         handleFileHistory(req, res, serviceRun);
-    });
+    }));
 
-    svr.Post("/api/restore", [&](const httplib::Request& req,
-                                  httplib::Response& res) {
+    svr.Post("/api/restore", locked([&](const httplib::Request& req,
+                                         httplib::Response& res) {
         handleRestore(req, res, serviceRun);
-    });
+    }));
 
     svr.set_mount_point("/", "./electron-ui/dist");
 
