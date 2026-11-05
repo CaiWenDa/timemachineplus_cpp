@@ -14,8 +14,11 @@ public:
     // 检查数据库是否已成功打开
     bool valid() const noexcept;
 
-    // 直接执行 SQL（建议仅用于不带参数的简单 SQL）
+    // 直接执行 SQL（支持多语句，适合执行 .sql 脚本文件内容）
     bool execSql(const std::string& sql);
+
+    // 读取并执行一个 .sql 脚本文件
+    bool execScriptFile(const std::string& path);
 
     // 返回准备好的语句（注意：Statement 持有对 Database 的引用，确保 Database 未被 close）
     std::unique_ptr<SQLite::Statement> prepareQuery(const std::string& sql);
