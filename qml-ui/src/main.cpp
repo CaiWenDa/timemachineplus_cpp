@@ -5,6 +5,8 @@
 #include <QFont>
 #include <QDir>
 #include <QFileInfo>
+#include <QIcon>
+#include <QQuickWindow>
 #include <QStandardPaths>
 
 #include "BackendBridge.h"
@@ -25,6 +27,13 @@ int main(int argc, char* argv[])
     app.setApplicationName("TimeMachinePlus");     // 用于数据/缓存目录命名
     app.setApplicationDisplayName("Time Machine+"); // 用于窗口/UI 显示
     app.setOrganizationName("timemachineplus");
+
+    // 窗口/任务栏图标：用 :/ 前缀（Qt C++ 资源系统规范路径，比 qrc: 更可靠）
+    QIcon appIcon(":/qml/app_icon.png");
+    if (appIcon.isNull())
+        qWarning("[main] app_icon.png 加载失败，请检查 qrc 资源路径");
+    else
+        app.setWindowIcon(appIcon);
 
     // 全局默认字体栈：与 Theme.fontUi 保持一致，覆盖未显式设置 font.family 的
     // 控件（QtQuick.Controls 内部文本等），防止中文回退到宋体。
@@ -105,6 +114,23 @@ int main(int argc, char* argv[])
     engine.load(QUrl(QStringLiteral("qrc:/qml/Main.qml")));
     if (engine.rootObjects().isEmpty())
         return -1;
+
+    // 直接给根窗口设置图标：Qt Quick 中 setWindowIcon 只设默认值，
+    // 任务栏/标题栏图标需要显式设到 QQuickWindow 上才稳定生效。
+    if (!appIcon.isNull())
+    {
+        int winCount = 0;
+        for (QObject* obj : engine.rootObjects())
+        {
+            QQuickWindow* win = qobject_cast<QQuickWindow*>(obj);
+            if (win)
+            {
+                win->setIcon(appIcon);
+                ++winCount;
+            }
+        }
+        qInfo("[main] 图标已设置到 %d 个窗口", winCount);
+    }
 
     return app.exec();
 }

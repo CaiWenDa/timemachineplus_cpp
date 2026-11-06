@@ -231,33 +231,38 @@ ApplicationWindow {
 
             property bool narrow: width < Theme.responsiveBreakpoint
 
-            // 左侧：时间轴面板（320px，白底右边线）
-            Rectangle {
+            // 左侧：时间轴面板（卡片式，与 contentPanel 一致：外层 Item 定位 + 内层卡片）
+            Item {
                 id: timelinePanel
                 anchors.left: parent.left
                 anchors.top: parent.top
                 width: parent.narrow ? parent.width : Theme.timelineWidth
                 height: parent.narrow ? Math.min(280, parent.height * 0.4) : parent.height
-                color: Theme.panelBg
-                Rectangle {
-                    visible: !parent.parent.narrow
-                    anchors.right: parent.right
-                    width: 1; height: parent.height
-                    color: Theme.border
-                }
-                Rectangle {
-                    visible: parent.parent.narrow
-                    anchors.bottom: parent.bottom
-                    width: parent.width; height: 1
-                    color: Theme.border
-                }
 
-                TimelinePane {
-                    id: timeline
+                // 卡片层：四边 16px 外边距
+                Rectangle {
                     anchors.fill: parent
-                    onSelectBackup: function(b) {
-                        root.currentBackup = b
-                        root.highlightPath = ""
+                    anchors.margins: 8
+                    anchors.rightMargin: 0
+                    radius: Theme.radiusL
+                    color: Theme.panelBg
+                    border.width: 1
+                    border.color: Theme.borderSoft
+                    clip: true
+
+                    // 内容层：四边 14px 内边距（padding）
+                    Item {
+                        anchors.fill: parent
+                        anchors.margins: 14
+
+                        TimelinePane {
+                            id: timeline
+                            anchors.fill: parent
+                            onSelectBackup: function(b) {
+                                root.currentBackup = b
+                                root.highlightPath = ""
+                            }
+                        }
                     }
                 }
             }
@@ -271,7 +276,7 @@ ApplicationWindow {
                 height: parent.narrow ? parent.height - timelinePanel.height : parent.height
 
                 Rectangle {
-                    anchors { fill: parent; margins: 16 }
+                    anchors { fill: parent; margins: 8 }
                     radius: Theme.radiusL
                     color: Theme.panelBg
                     border.width: 1; border.color: Theme.borderSoft

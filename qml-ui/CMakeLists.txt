@@ -15,6 +15,7 @@ add_executable(timemachineplus_qml WIN32
     src/BackendBridge.h
     src/BackendBridge.cpp
     src/app.manifest
+    src/app.rc
     ${TMP_ROOT}/src/service_run.cpp
     ${TMP_ROOT}/src/sqlite_helper.cpp
     ${TMP_ROOT}/src/util.cpp
