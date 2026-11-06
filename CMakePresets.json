@@ -1,0 +1,153 @@
+{
+  "version": 8,
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 21,
+    "patch": 0
+  },
+  "configurePresets": [
+    {
+      "name": "base",
+      "hidden": true,
+      "binaryDir": "${sourceDir}/out/build/${presetName}",
+      "installDir": "${sourceDir}/out/install/${presetName}",
+      "cacheVariables": {
+        "CMAKE_CXX_STANDARD": "17",
+        "CMAKE_CXX_STANDARD_REQUIRED": "ON"
+      }
+    },
+    {
+      "name": "msvc-base",
+      "hidden": true,
+      "inherits": "base",
+      "generator": "Visual Studio 18 2026",
+      "architecture": {
+        "value": "x64",
+        "strategy": "set"
+      },
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Windows"
+      }
+    },
+    {
+      "name": "msvc-ninja-base",
+      "hidden": true,
+      "inherits": "base",
+      "generator": "Ninja Multi-Config",
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Windows"
+      }
+    },
+    {
+      "name": "x64-Debug",
+      "inherits": "msvc-base",
+      "displayName": "MSVC x64 Debug (CLI + stdio + HTTP, no Qt)",
+      "cacheVariables": {
+        "TIMEMACHINEPLUS_BUILD_QML_UI": "OFF"
+      }
+    },
+    {
+      "name": "x64-Release",
+      "inherits": "msvc-base",
+      "displayName": "MSVC x64 Release (CLI + stdio + HTTP, no Qt)",
+      "cacheVariables": {
+        "TIMEMACHINEPLUS_BUILD_QML_UI": "OFF"
+      }
+    },
+    {
+      "name": "x64-Debug-QML",
+      "inherits": "msvc-base",
+      "displayName": "MSVC x64 Debug (QML UI)",
+      "cacheVariables": {
+        "CMAKE_PREFIX_PATH": "$penv{QT_DIR}",
+        "TIMEMACHINEPLUS_BUILD_QML_UI": "ON"
+      }
+    },
+    {
+      "name": "x64-Release-QML",
+      "inherits": "msvc-base",
+      "displayName": "MSVC x64 Release (QML UI) — packaging uses this",
+      "binaryDir": "${sourceDir}/build-release",
+      "installDir": "${sourceDir}/dist",
+      "cacheVariables": {
+        "CMAKE_PREFIX_PATH": "$penv{QT_DIR}",
+        "TIMEMACHINEPLUS_BUILD_QML_UI": "ON"
+      }
+    },
+    {
+      "name": "linux-gcc-base",
+      "hidden": true,
+      "inherits": "base",
+      "generator": "Ninja",
+      "cacheVariables": {
+        "CMAKE_C_COMPILER": "gcc",
+        "CMAKE_CXX_COMPILER": "g++",
+        "TIMEMACHINEPLUS_BUILD_QML_UI": "OFF"
+      },
+      "condition": {
+        "type": "notEquals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Windows"
+      }
+    },
+    {
+      "name": "Linux-GCC-Debug",
+      "inherits": "linux-gcc-base",
+      "displayName": "Linux GCC Debug",
+      "cacheVariables": { "CMAKE_BUILD_TYPE": "Debug" }
+    },
+    {
+      "name": "Linux-GCC-Release",
+      "inherits": "linux-gcc-base",
+      "displayName": "Linux GCC Release",
+      "cacheVariables": { "CMAKE_BUILD_TYPE": "Release" }
+    }
+  ],
+
+  "buildPresets": [
+    {
+      "name": "x64-Debug",
+      "configurePreset": "x64-Debug",
+      "configuration": "Debug"
+    },
+    {
+      "name": "x64-Release",
+      "configurePreset": "x64-Release",
+      "configuration": "Release"
+    },
+    {
+      "name": "x64-Debug-QML",
+      "configurePreset": "x64-Debug-QML",
+      "configuration": "Debug"
+    },
+    {
+      "name": "x64-Release-QML",
+      "configurePreset": "x64-Release-QML",
+      "configuration": "Release",
+      "targets": ["timemachineplus_qml"]
+    },
+    {
+      "name": "Linux-GCC-Debug",
+      "configurePreset": "Linux-GCC-Debug"
+    },
+    {
+      "name": "Linux-GCC-Release",
+      "configurePreset": "Linux-GCC-Release"
+    }
+  ],
+
+  "workflowPresets": [
+    {
+      "name": "packaging",
+      "displayName": "Full packaging build (Release + QML)",
+      "steps": [
+        { "type": "configure", "name": "x64-Release-QML" },
+        { "type": "build", "name": "x64-Release-QML" }
+      ]
+    }
+  ]
+}
