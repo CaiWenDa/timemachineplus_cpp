@@ -37,7 +37,7 @@ class ServiceRun
 
     // --- API 层需要的公开访问器 ---
     SQLiteHelper& sqliteHelper() { return m_sqliteHelper; }
-    std::string getTargetrootPath(int targetbkid);  // 供 restore / api_server 复用
+    std::string getTargetrootPath(int targetbkid);  // 供 restore / API 层复用
     const std::vector<timemachine::Backuproot>& backupRoots() const { return m_backupRootList; }
     const std::vector<timemachine::Backuptargetroot>& backupTargets() const { return m_backupTargetRootList; }
 

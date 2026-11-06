@@ -19,7 +19,7 @@ using json = nlohmann::json;
 namespace
 {
 
-// 全局互斥锁：串行化所有请求，与 api_server.cpp 同理
+// 全局互斥锁：串行化所有请求，与 runApiServer 同理
 std::mutex g_stdioMutex;
 std::atomic<bool> g_shutdown{false};
 

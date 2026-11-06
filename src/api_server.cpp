@@ -1,4 +1,4 @@
-// api_server.cpp - REST API server（方案 B 后端层）
+// api_server.cpp - HTTP REST API server
 // 将 ServiceRun + SQLite 查询能力暴露为 HTTP REST 端点
 #include "api_server.h"
 
