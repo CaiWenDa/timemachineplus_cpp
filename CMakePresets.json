@@ -97,14 +97,34 @@
     {
       "name": "Linux-GCC-Debug",
       "inherits": "linux-gcc-base",
-      "displayName": "Linux GCC Debug",
+      "displayName": "Linux GCC Debug (CLI only)",
       "cacheVariables": { "CMAKE_BUILD_TYPE": "Debug" }
     },
     {
       "name": "Linux-GCC-Release",
       "inherits": "linux-gcc-base",
-      "displayName": "Linux GCC Release",
+      "displayName": "Linux GCC Release (CLI only)",
       "cacheVariables": { "CMAKE_BUILD_TYPE": "Release" }
+    },
+    {
+      "name": "Linux-GCC-Debug-QML",
+      "inherits": "linux-gcc-base",
+      "displayName": "Linux GCC Debug (QML UI)",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "CMAKE_PREFIX_PATH": "$penv{QT_DIR}",
+        "TIMEMACHINEPLUS_BUILD_QML_UI": "ON"
+      }
+    },
+    {
+      "name": "Linux-GCC-Release-QML",
+      "inherits": "linux-gcc-base",
+      "displayName": "Linux GCC Release (QML UI)",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "CMAKE_PREFIX_PATH": "$penv{QT_DIR}",
+        "TIMEMACHINEPLUS_BUILD_QML_UI": "ON"
+      }
     }
   ],
 
@@ -137,6 +157,16 @@
     {
       "name": "Linux-GCC-Release",
       "configurePreset": "Linux-GCC-Release"
+    },
+    {
+      "name": "Linux-GCC-Debug-QML",
+      "configurePreset": "Linux-GCC-Debug-QML",
+      "targets": ["timemachineplus_qml"]
+    },
+    {
+      "name": "Linux-GCC-Release-QML",
+      "configurePreset": "Linux-GCC-Release-QML",
+      "targets": ["timemachineplus_qml"]
     }
   ],
 

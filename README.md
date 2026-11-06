@@ -6,7 +6,7 @@ macOS Time Machine 的开源复刻实现（C++17 移植版）：把指定目录�
 - 多源多目标：可同时备份多个源目录，自动按剩余空间选择目标盘
 - 版本化存储：每个文件每次备份生成一条历史快照，物理文件按 `md5_时间戳` 命名
 - 单文件数据库：全部元数据存于 SQLite（`timemachine.db`），便于迁移与备份
-- 跨平台后端：Windows / Linux 均可构建 CLI；GUI 当前面向 Windows
+- 跨平台后端：Windows / Linux 均可构建 CLI **与 QML GUI**；Linux 下 QML 使用系统 OpenSSL + pkg-config
 
 > 本项目源自 [epcdiy/timemachineplus](https://github.com/epcdiy/timemachineplus)（Java 版），本仓库为其 C++ 重构版本。
 
@@ -68,7 +68,8 @@ timemachineplus rm -t /path/to/your/target
 | C++ 编译器 | C++17（MSVC 2022/2026 x64 或 GCC） |
 | CMake | ≥ 3.10（使用 `CMakePresets.json` 需 ≥ 3.21） |
 | Qt（可选，构建 GUI） | Qt 5.15（Quick / Qml / Gui / QuickControls2 / Concurrent） |
-| 其他 | SQLiteCpp、cpp-httplib、nlohmann/json、OpenSSL 均已内置，无需额外安装 |
+| OpenSSL | Windows 使用内置预编译库；Linux / macOS 使用系统库（`libssl-dev` / `openssl-devel`） |
+| 其他 | SQLiteCpp、cpp-httplib、nlohmann/json 均已内置，无需额外安装 |
 
 初始化子模块（首次克隆后）：
 
@@ -97,10 +98,21 @@ cmake --build --preset x64-Release-QML
 ### Linux
 
 ```shell
-sudo apt install -y build-essential cmake ninja-build
+# 安装依赖（Debian / Ubuntu）
+sudo apt install -y build-essential cmake ninja-build pkg-config \
+    libssl-dev qtbase5-dev qtdeclarative5-dev qtquickcontrols2-5-dev
+
+# 仅 CLI
 cmake --preset Linux-GCC-Release
 cmake --build --preset Linux-GCC-Release
+
+# CLI + QML UI
+export QT_DIR=/opt/Qt/5.15.2/gcc_64       # Qt 非系统默认路径时需设置
+cmake --preset Linux-GCC-Release-QML
+cmake --build --preset Linux-GCC-Release-QML
 ```
+
+> Linux 构建会使用系统 OpenSSL（`libssl-dev`），不依赖仓库里的 `thirdparty/OpenSSL/lib/libcrypto.a`（该文件为 macOS 预编译产物）。
 
 ### 一键打包（Windows）
 

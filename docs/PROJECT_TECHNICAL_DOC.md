@@ -128,7 +128,7 @@ graph TB
 | C++ 标准 | **C++17**（必需） | 根 `CMakeLists.txt` 设为 `CMAKE_CXX_STANDARD 17` |
 | CMake | 最低 **3.10**（根工程）；**3.21+**（`CMakePresets.json`）；QML 子工程 **3.16+** | 推荐 3.25+ |
 | MSVC | Visual Studio 2022 / 2026，x64 | 工程启用 `/utf-8`、`_UNICODE` |
-| Linux 编译器 | `gcc` / `g++`（支持 C++17） | 仅 CLI 形态构建 |
+| Linux 编译器 | `gcc` / `g++`（支持 C++17） | CLI + QML UI 均可构建 |
 | Ninja | 任意版本 | 可选；`build/` 当前使用 Ninja |
 
 ### 2.2 第三方依赖（全部随仓库内置）
@@ -139,7 +139,7 @@ graph TB
 | SQLite | **3.49.2**（amalgamation） | `thirdparty/SQLiteCpp/sqlite3` | 嵌入式数据库 |
 | cpp-httplib | **0.18.3** | `thirdparty/cpp-httplib` | HTTP REST 服务（header-only） |
 | nlohmann/json | **3.11.3** | `thirdparty/nlohmann` | JSON 序列化 |
-| OpenSSL | **3.5.4**（仅 libcrypto） | `thirdparty/OpenSSL`（预编译 `libcrypto.lib` / `libcrypto.a` + 头文件） | MD5 摘要 |
+| OpenSSL | **3.5.4**（仅 libcrypto） | `thirdparty/OpenSSL`（Windows 预编译 `libcrypto.lib` + 头文件） | MD5 摘要；Linux / macOS 构建时改用 **系统 OpenSSL**（`pkg-config openssl` 或 `find_package(OpenSSL)`），不使用 `thirdparty/OpenSSL/lib/libcrypto.a`（该文件为 macOS 预编译产物，不适用于 Linux） |
 
 ### 2.3 GUI 技术栈（可选）
 
@@ -147,7 +147,7 @@ graph TB
 |------|---------|------|
 | Qt | **5.15** 及以上（`find_package(Qt5 5.15 ...)`） | 项目实测 `Qt 5.15.2 msvc2019_64` |
 | Qt 模块 | `Quick`, `Qml`, `Gui`, `QuickControls2`, `Concurrent` | CMake 组件名 |
-| 构建工具 | `windeployqt`（Qt 自带） | 打包时部署运行依赖 |
+| 构建工具 | `windeployqt`（Windows）/ `linuxdeployqt`（Linux，可选） | 打包时部署运行依赖 |
 | 安装包工具 | Inno Setup 6（可选） | 生成 `setup.exe` |
 
 > 注意：Qt 6 不适用。`Main.qml` 使用 `QtQuick 2.15` / `QtQuick.Controls 2.15`，且未使用 Qt6 才有的 `ApplicationWindow.icon.source` 等属性。
@@ -157,14 +157,15 @@ graph TB
 | 平台 | 支持情况 |
 |------|---------|
 | Windows x64 | CLI + QML UI + 绿色包 + 安装包 |
-| Linux x64 | CLI（`CMakePresets.json` 中 Linux 预设默认关闭 QML UI） |
-| macOS | 未提供预设，理论可自行配置 CLI 构建 |
+| Linux x64 | CLI + QML UI（**使用 `Linux-GCC-*-QML` 预设或显式开启 `TIMEMACHINEPLUS_BUILD_QML_UI=ON`**） |
+| macOS | 未提供预设，理论可自行配置 CLI 构建（OpenSSL 仍需系统库） |
 
 ### 2.5 依赖关系要点
 
-- **CLI 目标 `timemachineplus`** 链接：`SQLiteCpp` + `libcrypto` + Windows 下 `ws2_32`、`mswsock`。
-- **QML 目标 `timemachineplus_qml`** 复用后端源码（`service_run.cpp`、`sqlite_helper.cpp`、`util.cpp`），**不包含** `api_server.cpp`/`stdio_server.cpp`（GUI 走进程内 `BackendBridge` 调用）。链接 Qt5 与 `SQLiteCpp` + `libcrypto`。
-- 头文件搜索路径：`include/`、`thirdparty/OpenSSL`（因此代码中写作 `#include <openssl/md5.h>`）、`thirdparty/cpp-httplib`、`thirdparty/nlohmann`。
+- **CLI 目标 `timemachineplus`** 链接：Windows 用预编译 `libcrypto.lib` + `SQLiteCpp` + `ws2_32` / `mswsock`；Linux / macOS 用系统 OpenSSL（`pkg-config openssl` 或 `OpenSSL::Crypto`）+ `SQLiteCpp`。
+- **QML 目标 `timemachineplus_qml`** 复用后端源码（`service_run.cpp`、`sqlite_helper.cpp`、`util.cpp`），**不包含** `api_server.cpp`/`stdio_server.cpp`（GUI 走进程内 `BackendBridge` 调用）。链接 Qt5 与 `SQLiteCpp` + OpenSSL libcrypto；Linux 额外链接 `dl pthread`。
+- **平台专属资源**：`app.manifest`（DPI 感知）、`app.rc`（EXE 图标）、`WIN32` 子系统开关仅 Windows 构建时加入。Linux / macOS 下 `add_executable` 自动跳过这些参数。
+- 头文件搜索路径：`include/`、Windows 下额外加 `thirdparty/OpenSSL`（因此代码中写作 `#include <openssl/md5.h>`）、`thirdparty/cpp-httplib`、`thirdparty/nlohmann`。Linux / macOS 的 OpenSSL 头由 `pkg-config` / `find_package` 自动注入。
 
 ---
 
@@ -188,15 +189,33 @@ graph TB
 
 #### Linux
 
-```bash
-# Debian/Ubuntu 示例
-sudo apt install -y build-essential cmake ninja-build
+> Linux 构建会使用 **系统 OpenSSL**（`libssl-dev`），不依赖仓库里的 `thirdparty/OpenSSL/lib/libcrypto.a`（该文件为 macOS 预编译产物）。
 
-# 若需构建 QML UI（可选）
-sudo apt install -y qtbase5-dev qtquickcontrols2-5-dev qtdeclarative5-dev
+```bash
+# Debian / Ubuntu（CLI + QML UI）
+sudo apt update
+sudo apt install -y \
+    build-essential cmake ninja-build pkg-config \
+    libssl-dev \
+    qtbase5-dev qtdeclarative5-dev qtquickcontrols2-5-dev
+
+# Fedora / RHEL
+sudo dnf install -y \
+    gcc-c++ cmake ninja-build pkg-config openssl-devel \
+    qt5-qtbase-devel qt5-qtdeclarative-devel qt5-qtquickcontrols2-devel
 ```
 
-> Linux 下 CLI 链接仓库内置的 `thirdparty/OpenSSL/lib/libcrypto.a`，需要架构匹配；不匹配时建议改用系统 OpenSSL 并调整 `CMakeLists.txt` 链接项。
+初始化子模块（首次克隆后）：
+
+```bash
+git submodule update --init --recursive
+```
+
+若发行版源里没有 Qt 5.15，可从 <https://download.qt.io/archive/qt/5.15/> 下载离线安装包，装完后：
+
+```bash
+export QT_DIR=/opt/Qt/5.15.2/gcc_64
+```
 
 ### 3.2 环境变量
 
@@ -225,6 +244,8 @@ $env:QT_DIR = "C:\Qt\5.15.2\msvc2019_64"
 | `x64-Release-QML` | 同上 | `build-release` | CLI + QML（Release），安装前缀 `dist`，**打包使用** |
 | `Linux-GCC-Debug` | Ninja | `out/build/Linux-GCC-Debug` | Linux CLI |
 | `Linux-GCC-Release` | Ninja | `out/build/Linux-GCC-Release` | Linux CLI |
+| `Linux-GCC-Debug-QML` | Ninja | `out/build/Linux-GCC-Debug-QML` | Linux CLI + QML（Debug），需先设 `QT_DIR` |
+| `Linux-GCC-Release-QML` | Ninja | `out/build/Linux-GCC-Release-QML` | Linux CLI + QML（Release），需先设 `QT_DIR` |
 
 常用命令：
 
@@ -249,8 +270,14 @@ cmake --workflow --preset packaging
 Linux：
 
 ```bash
+# 仅 CLI
 cmake --preset Linux-GCC-Release
 cmake --build --preset Linux-GCC-Release
+
+# CLI + QML UI
+export QT_DIR=/opt/Qt/5.15.2/gcc_64
+cmake --preset Linux-GCC-Release-QML
+cmake --build --preset Linux-GCC-Release-QML
 ```
 
 > 说明：预设中硬编码了生成器名 `Visual Studio 18 2026`。若本机只有 VS 2022，请把 `CMakePresets.json` 中 `generator` 改为 `Visual Studio 17 2022`，或直接使用 3.4 的手工命令。
@@ -286,9 +313,19 @@ cmake --build build --target timemachineplus_qml
 **Linux**
 
 ```bash
+# CLI 仅（默认）
 cmake -S . -B build-linux -G Ninja -DCMAKE_BUILD_TYPE=Release -DTIMEMACHINEPLUS_BUILD_QML_UI=OFF
 cmake --build build-linux --target timemachineplus
+
+# CLI + QML UI
+export QT_DIR=/opt/Qt/5.15.2/gcc_64
+cmake -S . -B build-linux -G Ninja -DCMAKE_BUILD_TYPE=Release \
+      -DTIMEMACHINEPLUS_BUILD_QML_UI=ON \
+      -DCMAKE_PREFIX_PATH="$QT_DIR"
+cmake --build build-linux --target timemachineplus_qml
 ```
+
+Linux 下链接系统 OpenSSL（`libssl-dev` 必须先装），OpenSSL 头文件与库路径由 `pkg-config openssl` 自动探测；找不到 `pkg-config` 时回退到 `find_package(OpenSSL)`。
 
 ### 3.5 一键打包（Windows）
 
@@ -377,7 +414,7 @@ dist/
 | CMake 选项 | 默认 | 作用 |
 |-----------|------|------|
 | `TIMEMACHINEPLUS_BUILD_QML_UI` | `ON` | 是否构建 QML UI；未找到 Qt5 时自动跳过并打印提示 |
-| `TIMEMACHINEPLUS_QML_AUTODEPLOY` | `OFF` | 构建后自动执行 `windeployqt`（日常 Debug 建议保持 OFF） |
+| `TIMEMACHINEPLUS_QML_AUTODEPLOY` | `OFF` | 构建后自动执行部署工具：Windows 下 `windeployqt`，Linux 下 `linuxdeployqt`（可选安装），日常 Debug 建议保持 OFF |
 | `SQLITECPP_RUN_CPPCHECK` / `SQLITECPP_RUN_CPPLINT` | `OFF`（强制） | 关闭 SQLiteCpp 的静态检查 |
 
 ---

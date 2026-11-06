@@ -28,26 +28,28 @@ add_executable(timemachineplus
     src/api_server.cpp
     src/stdio_server.cpp)
 
-# Find OpenSSL for MD5 hashing
-# list(APPEND CMAKE_PREFIX_PATH "%userprofile%/.conda/envs/scratch/Library")
-# find_package(OpenSSL REQUIRED)
-# if(OpenSSL_FOUND)
-#     target_include_directories(timemachineplus PRIVATE ${OPENSSL_INCLUDE_DIR})
-#     if(LINUX)
-#         target_link_libraries(timemachineplus "libcrypto.a" SQLiteCpp)
-#     elseif(WIN32)
-#         target_link_libraries(timemachineplus "${PROJECT_SOURCE_DIR}/thirdparty/OpenSSL/libcrypto.lib" SQLiteCpp)
-#     endif()
-# endif()
-
-target_include_directories(timemachineplus PRIVATE ${OPENSSL_INCLUDE_DIR})
-if(LINUX)
-    target_link_libraries(timemachineplus "${PROJECT_SOURCE_DIR}/thirdparty/OpenSSL/lib/libcrypto.a" SQLiteCpp)
-elseif(WIN32)
+# ---- OpenSSL（libcrypto，用于 MD5） ----
+# Windows：使用 thirdparty/OpenSSL 预编译的 libcrypto.lib
+# Linux  / macOS：使用系统 OpenSSL（pkg-config 或 find_package），
+#                 thirdparty/OpenSSL/libcrypto.a 是 macOS 预编译产物，不适用于 Linux
+if(WIN32)
+    target_include_directories(timemachineplus PRIVATE
+        "${PROJECT_SOURCE_DIR}/thirdparty/OpenSSL")
     target_link_libraries(timemachineplus
         "${PROJECT_SOURCE_DIR}/thirdparty/OpenSSL/lib/libcrypto.lib"
-        SQLiteCpp
-        ws2_32 mswsock)
+        SQLiteCpp ws2_32 mswsock)
+else()
+    find_package(PkgConfig QUIET)
+    if(PkgConfig_FOUND)
+        pkg_check_modules(OPENSSL REQUIRED openssl)
+        target_include_directories(timemachineplus PRIVATE ${OPENSSL_INCLUDE_DIRS})
+        target_link_directories(timemachineplus PRIVATE ${OPENSSL_LIBRARY_DIRS})
+        target_link_libraries(timemachineplus ${OPENSSL_LIBRARIES} SQLiteCpp)
+    else()
+        find_package(OpenSSL REQUIRED)
+        target_include_directories(timemachineplus PRIVATE ${OPENSSL_INCLUDE_DIR})
+        target_link_libraries(timemachineplus OpenSSL::Crypto SQLiteCpp)
+    endif()
 endif()
 
 
