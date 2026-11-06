@@ -14,7 +14,7 @@ class ServiceRun
    public:
     ServiceRun()
         : m_sqliteHelper(
-              // 支持 TIMEMACHINE_DB 环境变量覆盖 DB 路径（Electron/LAN 分布式场景需要）
+              // 支持 TIMEMACHINE_DB 环境变量覆盖 DB 路径（便于测试和多实例场景）
               []() {
                   if (const char* env = std::getenv("TIMEMACHINE_DB")) {
                       return std::string(env[0] ? env : timemachineplus::config::kDbName);

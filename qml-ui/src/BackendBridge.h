@@ -3,7 +3,7 @@
 //   - BackendWorker 跑在独立 QThread，持有 ServiceRun，所有槽函数串行执行（FIFO，天然无并发问题）
 //   - BackendBridge 住在主线程，暴露 Q_INVOKABLE 给 QML，内部 QueuedConnection 投递给 worker
 //   - worker 完成工作后 emit 结果信号，跨线程自动排队回主线程，bridge 转发给 QML
-// 字段命名与 electron-ui/src/api/tmb.ts 对齐（camelCase），保证两端协议一致
+// 字段命名采用 camelCase，与各 UI 前端保持一致，方便协议对接
 #pragma once
 
 #include <QObject>

@@ -142,7 +142,7 @@ qw->setSource(QUrl("qrc:/qml/Main.qml"));   // 一个 QWidget 里渲染 QML
 
 **步骤 4：追踪数据流而不是调用链。** QML 没有"谁调了 setText"这种问题——看到界面文字变化，反向搜属性名：`text: xxx` 的 `xxx` 从哪来。例如文件列表为空，搜 `backupFilesReady` → 找到 [Main.qml 的 Connections](file:///d:/DATA/GitHub/timemachineplus_cpp/qml-ui/qml/Main.qml#L32) → 再查 C++ 侧发射处。
 
-**步骤 5：显隐逻辑看 `visible` 绑定。** 搜索态/列表态切换：`visible: root.searchQuery.length > 0` 与 `visible: root.searchQuery.length === 0` 两个互斥绑定即 Electron 版的 `v-if`。
+**步骤 5：显隐逻辑看 `visible` 绑定。** 搜索态/列表态切换：`visible: root.searchQuery.length > 0` 与 `visible: root.searchQuery.length === 0` 两个互斥绑定即可实现条件显隐，类似 Vue 的 `v-if`。
 
 ---
 

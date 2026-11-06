@@ -287,7 +287,7 @@ void BackendWorker::triggerBackup()
     }
     try
     {
-        // 与 Electron 版行为一致：本槽在 worker 线程串行执行，
+        // 本槽在 worker 线程串行执行，
         // 阻塞期间后续请求排队等待（单线程 worker 的 FIFO 特性）
         m_svc->XCopy();
         emit opNotice(QStringLiteral("ok"), QStringLiteral("✅ 备份完成"));

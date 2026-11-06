@@ -379,10 +379,6 @@ timemachine.db
 timemachine.db-*
 log.log
 
-# Electron / Vite build output
-electron-ui/dist/
-electron-ui/dist-electron/
-
 # QML UI MSVC build output
 build-qml/
 

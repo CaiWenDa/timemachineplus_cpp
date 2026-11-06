@@ -591,11 +591,8 @@ int runApiServer(ServiceRun& serviceRun, int port)
         handleRestore(req, res, serviceRun);
     }));
 
-    svr.set_mount_point("/", "./electron-ui/dist");
-
     std::cout << "[API] timemachineplus HTTP server starting on port " << port
               << " ..." << std::endl;
-    std::cout << "[API] UI (if built) at http://localhost:" << port << "/" << std::endl;
 
     return svr.listen("127.0.0.1", port) ? 0 : 1;
 }
